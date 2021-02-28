@@ -46,12 +46,12 @@ def main():
         df_selected_industry = df.loc[(df['Name'] == selected_industry) & (df.index >= start_date) & (df.index <= end_date)]
 
         if sma_ema == 'SMA':
-            # create 4 & 10 week Simple Moving Average column
+            # create Simple Moving Average column
             df_selected_industry[sma_ema + '_' + str(short_term)] = df_selected_industry['Ind Group Rank'].rolling(window=short_term, min_periods=1).mean()
             df_selected_industry[sma_ema + '_' + str(long_term)] = df_selected_industry['Ind Group Rank'].rolling(window=long_term, min_periods=1).mean()
 
-        elif sma_ema == 'EWMA':
-             # create 4 & 10 week Exponential Moving Average columns
+        elif sma_ema == 'EMA':
+             # create Exponential Moving Average columns
             df_selected_industry[sma_ema + '_' + str(short_term)] = df_selected_industry['Ind Group Rank'].ewm(span=short_term, adjust=False).mean()
             df_selected_industry[sma_ema + '_' + str(long_term)] =  df_selected_industry['Ind Group Rank'].ewm(span=long_term, adjust=False).mean()
 
