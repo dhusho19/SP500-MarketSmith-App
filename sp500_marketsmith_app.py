@@ -80,12 +80,12 @@ def main():
             # buy alerts
             plt.plot(df_selected_industry[df_selected_industry['position'] == 1].index,
                     df_selected_industry[sma_ema + '_' + str(short_term)][df_selected_industry['position'] == 1],
-                    'v', markersize = 15, color = 'r', label = 'BUY')
+                    'v', markersize = 15, color = 'r', label = 'SELL')
 
             # sell alerts
             plt.plot(df_selected_industry[df_selected_industry['position'] == -1].index,
                     df_selected_industry[sma_ema + '_' + str(short_term)][df_selected_industry['position'] == -1],
-                    '^', markersize = 15, color = 'g', label = 'SELL')
+                    '^', markersize = 15, color = 'g', label = 'BUY')
 
             # reserve y axis as the lower Industry Group Rank the better
             plt.gca().invert_yaxis()
