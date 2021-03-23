@@ -3,10 +3,8 @@ import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
 
-st.title('SP500 & MarketSmith Analysis')
-st.markdown("""Welcome to this SP500 & MarketSmith Analysis.
-            Here we will be analysing Industry Group Ranking(s) and their Simple & Exponential Moving Averages,
-            using a Crossover Strategy to determine buy & sell triggers.""")
+st.title('MarketSmith 197 Industry Groups')
+
 
 def main():
 
@@ -24,23 +22,22 @@ def main():
 
         # sidebar filters
         industry = sorted(df['Name'].unique().tolist())
-        st.sidebar.header('Industries')
-        selected_industry = st.sidebar.selectbox('SP500 Industries', industry)
+        st.sidebar.header('197 Industry Groups')
+        selected_industry = st.sidebar.selectbox('', industry)
 
         mv_options = ['SMA','EMA']
-        st.sidebar.header('Simple Moving or Exponential Moving Average')
         sma_ema = st.sidebar.radio('',mv_options)
-        short_term = st.sidebar.slider('Short-Term Moving Average', min_value=1,
-                                                                    max_value=5,
-                                                                    value=4)
+        short_term = st.sidebar.slider('ST', min_value=1,
+                                             max_value=10,
+                                             value=4)
 
-        long_term = st.sidebar.slider('Long-Term Moving Average',  min_value=10,
-                                                                   max_value=50,
-                                                                   value=10)
+        long_term = st.sidebar.slider('LT',  min_value=2,
+                                             max_value=40,
+                                             value=10)
         min_date = df.index.min()
         st.sidebar.header("Date Range")
-        start_date = st.sidebar.date_input('Start Date',min_date)
-        end_date = st.sidebar.date_input('End Date')
+        start_date = st.sidebar.date_input('Begin',min_date)
+        end_date = st.sidebar.date_input('End')
 
         # display filtered data
         df_selected_industry = df.loc[(df['Name'] == selected_industry) & (df.index >= start_date) & (df.index <= end_date)]
@@ -81,7 +78,7 @@ def main():
             plt.plot(df_selected_industry[df_selected_industry['position'] == -1].index,
                     df_selected_industry[sma_ema + '_' + str(short_term)][df_selected_industry['position'] == -1],
                     '^', markersize = 15, color = 'g', label = 'BUY')
-            
+
             # sell alerts
             plt.plot(df_selected_industry[df_selected_industry['position'] == 1].index,
                     df_selected_industry[sma_ema + '_' + str(short_term)][df_selected_industry['position'] == 1],
