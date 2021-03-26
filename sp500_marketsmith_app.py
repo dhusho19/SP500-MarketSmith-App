@@ -21,10 +21,20 @@ def main():
         df.set_index('Date', inplace=True)
 
         # sidebar filters
-        industry = sorted(df['Name'].unique().tolist())
         st.sidebar.header('197 Industry Groups')
+
+        # list of all Industries in the dataset to populate the filter with.
+        industry = sorted(df['Name'].unique().tolist())
+
+        # store users Industry selection
         selected_industry = st.sidebar.selectbox('', industry)
 
+        # find the symbol related to the Industry selection
+        symbol_filtered = df.loc[df['Name'] == selected_industry, 'Symbol'].unique()
+        # create a filter to populate the related symbol.
+        selected_symbol = st.sidebar.selectbox('',symbol_filtered)
+
+        # Short and Long Term Moving Average filters
         mv_options = ['SMA','EMA']
         sma_ema = st.sidebar.radio('',mv_options)
         short_term = st.sidebar.slider('ST', min_value=1,
@@ -34,28 +44,31 @@ def main():
         long_term = st.sidebar.slider('LT',  min_value=2,
                                              max_value=40,
                                              value=10)
+
+        # date picker filters, find the minimum date in the dataset and use that as the start date
         min_date = df.index.min()
         st.sidebar.header("Date Range")
         start_date = st.sidebar.date_input('Begin',min_date)
         end_date = st.sidebar.date_input('End')
 
-        # display filtered data
-        df_selected_industry = df.loc[(df['Name'] == selected_industry) & (df.index >= start_date) & (df.index <= end_date)]
+        # filtered data
+        df_selected = df.loc[(df['Name'] == selected_industry) & (df.index >= start_date) & (df.index <= end_date)]
+
 
         if sma_ema == 'SMA':
             # create Simple Moving Average column
-            df_selected_industry[sma_ema + '_' + str(short_term)] = df_selected_industry['Ind Group Rank'].rolling(window=short_term, min_periods=1).mean()
-            df_selected_industry[sma_ema + '_' + str(long_term)] = df_selected_industry['Ind Group Rank'].rolling(window=long_term, min_periods=1).mean()
+            df_selected[sma_ema + '_' + str(short_term)] = df_selected['Ind Group Rank'].rolling(window=short_term, min_periods=1).mean()
+            df_selected[sma_ema + '_' + str(long_term)] = df_selected['Ind Group Rank'].rolling(window=long_term, min_periods=1).mean()
 
         elif sma_ema == 'EMA':
              # create Exponential Moving Average columns
-            df_selected_industry[sma_ema + '_' + str(short_term)] = df_selected_industry['Ind Group Rank'].ewm(span=short_term, adjust=False).mean()
-            df_selected_industry[sma_ema + '_' + str(long_term)] =  df_selected_industry['Ind Group Rank'].ewm(span=long_term, adjust=False).mean()
+            df_selected[sma_ema + '_' + str(short_term)] = df_selected['Ind Group Rank'].ewm(span=short_term, adjust=False).mean()
+            df_selected[sma_ema + '_' + str(long_term)] =  df_selected['Ind Group Rank'].ewm(span=long_term, adjust=False).mean()
 
-
-        df_selected_industry['alert'] = 0.0
-        df_selected_industry['alert'] = np.where(df_selected_industry[sma_ema + '_' + str(short_term)]>df_selected_industry[sma_ema + '_' + str(long_term)], 1.0, 0.0)
-        df_selected_industry['position'] = df_selected_industry['alert'].diff()
+        # signal alerts for crossover strategy
+        df_selected['alert'] = 0.0
+        df_selected['alert'] = np.where(df_selected[sma_ema + '_' + str(short_term)]>df_selected[sma_ema + '_' + str(long_term)], 1.0, 0.0)
+        df_selected['position'] = df_selected['alert'].diff()
 
 
         # enable toggle to view & unview the dataset
@@ -66,32 +79,34 @@ def main():
             st.write(df)
 
         # filtered data to create plots
-        if st.button('Show Industry Group Ranking Plots'):
-            st.header('SP500 Industry Rankings')
+        if st.button('Plot IG Ranking Graph'):
+            st.header('IBD Industry Group Ranking')
 
-            fig, ax = plt.subplots(figsize=(16, 8))
-            df_selected_industry['Ind Group Rank'].plot(label='IND GROUP RANK',style='k--')
-            df_selected_industry[sma_ema + '_' + str(short_term)].plot(color='b')
-            df_selected_industry[sma_ema + '_' + str(long_term)].plot(color='m')
+            fig = px.line(df_selected, x=df_selected.index, y=['Ind Group Rank',df_selected[sma_ema + '_' + str(short_term)],df_selected[sma_ema + '_' + str(long_term)]],
+                          hover_name='Name')
 
-            # buy alerts
-            plt.plot(df_selected_industry[df_selected_industry['position'] == -1].index,
-                    df_selected_industry[sma_ema + '_' + str(short_term)][df_selected_industry['position'] == -1],
-                    '^', markersize = 15, color = 'g', label = 'BUY')
+            fig.add_scatter(x=df_selected[df_selected['position'] == -1].index,
+                            y=df_selected[sma_ema + '_' + str(short_term)][df_selected['position'] == -1],
+                            name= 'Buy',
+                            mode='markers',
+                            marker_symbol='star-triangle-up',
+                            marker_color='green', marker_size=15)
 
-            # sell alerts
-            plt.plot(df_selected_industry[df_selected_industry['position'] == 1].index,
-                    df_selected_industry[sma_ema + '_' + str(short_term)][df_selected_industry['position'] == 1],
-                    'v', markersize = 15, color = 'r', label = 'SELL')
+            fig.add_scatter(x=df_selected[df_selected['position'] == 1].index,
+                            y=df_selected[sma_ema + '_' + str(short_term)][df_selected['position'] == 1],
+                            name= 'Sell',
+                            mode='markers',
+                            marker_symbol='star-triangle-down',
+                            marker_color='red', marker_size=15)
 
-            # reserve y axis as the lower Industry Group Rank the better
-            plt.gca().invert_yaxis()
-            plt.title(selected_industry,fontsize=25)
-            plt.xlabel('Date',fontsize=20)
-            plt.ylabel('Industry Group Rank',fontsize=20)
-            plt.grid()
-            plt.legend();
-            return st.pyplot(fig)
+            fig.update_layout(
+                            title=selected_industry,
+                            xaxis_title="Date",
+                            yaxis_title="IG Ranking",
+                            legend_title ='')
+
+            fig.update_yaxes(autorange="reversed")
+            return st.plotly_chart(fig)
 
     else:
         st.subheader("About")
