@@ -1,10 +1,10 @@
 import pandas as pd
 import numpy as np
+import base64
 import streamlit as st
-import matplotlib.pyplot as plt
 import plotly.express as px
 
-st.title('MarketSmith 197 Industry Groups')
+st.title('MS Sector & Industry Group Rotation')
 
 
 def main():
@@ -22,18 +22,16 @@ def main():
         df.set_index('Date', inplace=True)
 
         # sidebar filters
-        st.sidebar.header('197 Industry Groups')
+        st.sidebar.header('Sector & Industry Groups')
+        # load list of Sector values & create filter
+        sector = sorted(df['Sector'].unique().tolist())
+        selected_sector = st.sidebar.selectbox('', sector)
 
-        # list of all Industries in the dataset to populate the filter with.
-        industry = sorted(df['Name'].unique().tolist())
+        # list of all relevant Industries based on the Sector filter selection
+        industry = df.loc[df['Sector'] == selected_sector, 'Name'].unique()
 
         # store users Industry selection
         selected_industry = st.sidebar.selectbox('', industry)
-
-        # find the symbol related to the Industry selection
-        symbol_filtered = df.loc[df['Name'] == selected_industry, 'Symbol'].unique()
-        # create a filter to populate the related symbol.
-        selected_symbol = st.sidebar.selectbox('',symbol_filtered)
 
         # Short and Long Term Moving Average filters
         mv_options = ['SMA','EMA']
@@ -52,25 +50,50 @@ def main():
         start_date = st.sidebar.date_input('Begin',min_date)
         end_date = st.sidebar.date_input('End')
 
-        # filtered data
-        df_selected = df.loc[(df['Name'] == selected_industry) & (df.index >= start_date) & (df.index <= end_date)]
+        # filtered sector & industry data
+        df_selected_sector = df.loc[(df['Sector'] == selected_sector) & (df.index >= start_date) & (df.index <= end_date)]
+        df_selected_industry = df.loc[(df['Name'] == selected_industry) & (df.index >= start_date) & (df.index <= end_date)]
+
+        # column names for long and short moving average columns
+        short_term_col = sma_ema + '_' + str(short_term)
+        long_term_col = sma_ema + '_' + str(long_term)
+
+        # create a total market value to utilise for weighted sector rank, then add this to the dataframe
+        total_mkt_val = df_selected_sector.groupby([df_selected_sector.index,'Sector'])['Ind Mkt Val (bil)'].transform('sum')
+        df_selected_sector['total_mkt_val'] = total_mkt_val
+
+        # calculate a percentage weight for each industry
+        df_selected_sector['weight'] = df_selected_sector['Ind Mkt Val (bil)']/df_selected_sector['total_mkt_val']
+        # use the newly created weight column to calculate sector rank
+        df_selected_sector['sector_rank'] = df_selected_sector['weight']*df_selected_sector['Ind Group Rank']
+        #st.write(df_selected_sector)
+
+        df_sector_rank = df_selected_sector.groupby([df_selected_sector.index,'Sector'])['sector_rank'].sum().reset_index()
+        df_sector_rank.set_index('Date',inplace=True)
 
 
         if sma_ema == 'SMA':
-            # create Simple Moving Average column
-            df_selected[sma_ema + '_' + str(short_term)] = df_selected['Ind Group Rank'].rolling(window=short_term, min_periods=1).mean()
-            df_selected[sma_ema + '_' + str(long_term)] = df_selected['Ind Group Rank'].rolling(window=long_term, min_periods=1).mean()
+            # Sector
+            df_sector_rank[short_term_col] = df_sector_rank['sector_rank'].rolling(window=short_term, min_periods=1).mean()
+            df_sector_rank[long_term_col] = df_sector_rank['sector_rank'].rolling(window=long_term, min_periods=1).mean()
+            # Industry
+            df_selected_industry[short_term_col] = df_selected_industry['Ind Group Rank'].rolling(window=short_term, min_periods=1).mean()
+            df_selected_industry[long_term_col] = df_selected_industry['Ind Group Rank'].rolling(window=long_term, min_periods=1).mean()
 
         elif sma_ema == 'EMA':
-             # create Exponential Moving Average columns
-            df_selected[sma_ema + '_' + str(short_term)] = df_selected['Ind Group Rank'].ewm(span=short_term, adjust=False).mean()
-            df_selected[sma_ema + '_' + str(long_term)] =  df_selected['Ind Group Rank'].ewm(span=long_term, adjust=False).mean()
+            # Industry
+            df_selected_industry[short_term_col] = df_selected_industry['Ind Group Rank'].ewm(span=short_term, adjust=False).mean()
+            df_selected_industry[long_term_col] =  df_selected_industry['Ind Group Rank'].ewm(span=long_term, adjust=False).mean()
 
-        # signal alerts for crossover strategy
-        df_selected['alert'] = 0.0
-        df_selected['alert'] = np.where(df_selected[sma_ema + '_' + str(short_term)]>df_selected[sma_ema + '_' + str(long_term)], 1.0, 0.0)
-        df_selected['position'] = df_selected['alert'].diff()
+        # signal alerts for crossover strategy Sector
+        df_sector_rank['alert'] = 0.0
+        df_sector_rank['alert'] = np.where(df_sector_rank[short_term_col]>df_sector_rank[long_term_col], 1.0, 0.0)
+        # create a new column 'Position' which is a day-to-day difference of the alert column.
+        df_sector_rank['position'] = df_sector_rank['alert'].diff()
 
+        df_selected_industry['alert'] = 0.0
+        df_selected_industry['alert'] = np.where(df_selected_industry[short_term_col]>df_selected_industry[long_term_col], 1.0, 0.0)
+        df_selected_industry['position'] = df_selected_industry['alert'].diff()
 
         # enable toggle to view & unview the dataset
         if st.checkbox('Show File Details & Dataframe'):
@@ -79,22 +102,63 @@ def main():
             st.write('>Data Dimension: ' + str(df.shape[0]) + ' rows and ' + str(df.shape[1]) + ' columns.')
             st.write(df)
 
+        st.header('** Graphing Sectors & IG**')
+
         # filtered data to create plots
-        if st.button('Plot IG Ranking Graph'):
-            st.header('IBD Industry Group Ranking')
+        if st.checkbox('Plot Sector Ranking Graph'):
+            st.header('IBD Sector Ranking')
 
-            fig = px.line(df_selected, x=df_selected.index, y=['Ind Group Rank',df_selected[sma_ema + '_' + str(short_term)],df_selected[sma_ema + '_' + str(long_term)]],
-                          hover_name='Name')
+            fig = px.line(df_sector_rank, x=df_sector_rank.index, y=['sector_rank',df_sector_rank[short_term_col],df_sector_rank[long_term_col]],
+                          hover_name='Sector')
 
-            fig.add_scatter(x=df_selected[df_selected['position'] == -1].index,
-                            y=df_selected[sma_ema + '_' + str(short_term)][df_selected['position'] == -1],
+            fig.add_scatter(x=df_sector_rank[df_sector_rank['position'] == -1].index,
+                            y=df_sector_rank[short_term_col][df_sector_rank['position'] == -1],
                             name= 'Buy',
                             mode='markers',
                             marker_symbol='star-triangle-up',
                             marker_color='green', marker_size=15)
 
-            fig.add_scatter(x=df_selected[df_selected['position'] == 1].index,
-                            y=df_selected[sma_ema + '_' + str(short_term)][df_selected['position'] == 1],
+            fig.add_scatter(x=df_sector_rank[df_sector_rank['position'] == 1].index,
+                            y=df_sector_rank[short_term_col][df_sector_rank['position'] == 1],
+                            name= 'Sell',
+                            mode='markers',
+                            marker_symbol='star-triangle-down',
+                            marker_color='red', marker_size=15)
+
+            fig.update_layout(
+                            title=selected_sector,
+                            xaxis_title="Date",
+                            yaxis_title="Sector Ranking",
+                            legend_title ='')
+
+            fig.update_yaxes(autorange="reversed")
+
+            st.subheader('Buy & Sell DataFrame for ' + selected_sector)
+
+            # create buy and sell column, to easily identify the triggers
+            df_sector_rank['buy_sell'] = np.where(df_sector_rank['position'] == -1,'BUY','SELL')
+            # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
+            st.markdown(filedownload(df_sector_rank[['Sector','sector_rank',short_term_col,long_term_col,'buy_sell']].loc[(df_sector_rank['position'].isin([-1,1]))],selected_sector), unsafe_allow_html=True)
+            # write df to streamlit app
+            st.write(df_sector_rank[['Sector','sector_rank',short_term_col,long_term_col,'buy_sell']].loc[(df_sector_rank['position'].isin([-1,1]))])
+
+            return st.plotly_chart(fig)
+
+        if st.checkbox('Plot IG Ranking Graph'):
+            st.header('IBD Industry Group Ranking')
+
+            fig = px.line(df_selected_industry, x=df_selected_industry.index, y=['Ind Group Rank',df_selected_industry[short_term_col],df_selected_industry[long_term_col]],
+                          hover_name='Name')
+
+            fig.add_scatter(x=df_selected_industry[df_selected_industry['position'] == -1].index,
+                            y=df_selected_industry[short_term_col][df_selected_industry['position'] == -1],
+                            name= 'Buy',
+                            mode='markers',
+                            marker_symbol='star-triangle-up',
+                            marker_color='green', marker_size=15)
+
+            fig.add_scatter(x=df_selected_industry[df_selected_industry['position'] == 1].index,
+                            y=df_selected_industry[short_term_col][df_selected_industry['position'] == 1],
                             name= 'Sell',
                             mode='markers',
                             marker_symbol='star-triangle-down',
@@ -107,13 +171,31 @@ def main():
                             legend_title ='')
 
             fig.update_yaxes(autorange="reversed")
+
+            st.subheader('Buy & Sell DataFrame for ' + selected_industry)
+
+            # create buy and sell column, to easily identify the triggers
+            df_selected_industry['buy_sell'] = np.where(df_selected_industry['position'] == -1,'BUY','SELL')
+            # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
+            st.markdown(filedownload(df_selected_industry[['Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell']].loc[(df_selected_industry['position'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
+            # write df to streamlit app
+            st.write(df_selected_industry[['Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell']].loc[(df_selected_industry['position'].isin([-1,1]))])
+
             return st.plotly_chart(fig)
+
 
     else:
         st.subheader("About")
         st.info("Built with Streamlit")
         st.info("hushon.d@googlemail.com")
         st.text("Donovan Hushon")
+
+# download buy and sell data
+def filedownload(df, sector_ig):
+    csv = df.to_csv(index=False)
+    b64 = base64.b64encode(csv.encode()).decode()  # strings <-> bytes conversions
+    href = f'<a href="data:file/csv;base64,{b64}" download="Buy Sell Triggers {sector_ig}.csv">Download to CSV File</a>'
+    return href
 
 if __name__ == '__main__':
     main()
