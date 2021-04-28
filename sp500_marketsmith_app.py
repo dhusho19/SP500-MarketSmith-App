@@ -82,8 +82,8 @@ def main():
 
         elif sma_ema == 'EMA':
             # Sector
-            df_sector_rank[short_term_col] = df_sector_rank['Sector Rank'].ewm(span=short_term, adjust=False).mean()
-            df_sector_rank[long_term_col] =  df_sector_rank['Sector Rank'].ewm(span=long_term, adjust=False).mean()
+            df_sector_rank[short_term_col] = df_sector_rank['sector_rank'].ewm(span=short_term, adjust=False).mean()
+            df_sector_rank[long_term_col] =  df_sector_rank['sector_rank'].ewm(span=long_term, adjust=False).mean()
             # Industry
             df_selected_industry[short_term_col] = df_selected_industry['Ind Group Rank'].ewm(span=short_term, adjust=False).mean()
             df_selected_industry[long_term_col] =  df_selected_industry['Ind Group Rank'].ewm(span=long_term, adjust=False).mean()
