@@ -143,7 +143,7 @@ def main():
             # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
             st.markdown(filedownload(df_sector_rank[['Sector','sector_rank',short_term_col,long_term_col,'buy_sell']].loc[(df_sector_rank['position'].isin([-1,1]))],selected_sector), unsafe_allow_html=True)
             # write df to streamlit app
-            st.write(df_sector_rank[['Sector','sector_rank',short_term_col,long_term_col,'buy_sell']].loc[(df_sector_rank['position'].isin([-1,1]))])
+            st.write(df_sector_rank[['Sector','sector_rank','buy_sell']].loc[(df_sector_rank['position'].isin([-1,1]))])
 
             return st.plotly_chart(fig)
 
@@ -182,7 +182,7 @@ def main():
             # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
             st.markdown(filedownload(df_selected_industry[['Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell']].loc[(df_selected_industry['position'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
             # write df to streamlit app
-            st.write(df_selected_industry[['Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell']].loc[(df_selected_industry['position'].isin([-1,1]))])
+            st.write(df_selected_industry[['Sector','Name','Ind Group Rank','buy_sell']].loc[(df_selected_industry['position'].isin([-1,1]))])
 
             return st.plotly_chart(fig)
 
