@@ -65,25 +65,25 @@ def main():
         # calculate a percentage weight for each industry
         df_selected_sector['weight'] = df_selected_sector['Ind Mkt Val (bil)']/df_selected_sector['total_mkt_val']
         # use the newly created weight column to calculate sector rank
-        df_selected_sector['sector_rank'] = df_selected_sector['weight']*df_selected_sector['Ind Group Rank']
+        df_selected_sector['Sector Rank'] = df_selected_sector['weight']*df_selected_sector['Ind Group Rank']
         #st.write(df_selected_sector)
 
-        df_sector_rank = df_selected_sector.groupby([df_selected_sector.index,'Sector'])['sector_rank'].sum().reset_index()
+        df_sector_rank = df_selected_sector.groupby([df_selected_sector.index,'Sector'])['Sector Rank'].sum().reset_index()
         df_sector_rank.set_index('Date',inplace=True)
 
 
         if sma_ema == 'SMA':
             # Sector
-            df_sector_rank[short_term_col] = df_sector_rank['sector_rank'].rolling(window=short_term, min_periods=1).mean()
-            df_sector_rank[long_term_col] = df_sector_rank['sector_rank'].rolling(window=long_term, min_periods=1).mean()
+            df_sector_rank[short_term_col] = df_sector_rank['Sector Rank'].rolling(window=short_term, min_periods=1).mean()
+            df_sector_rank[long_term_col] = df_sector_rank['Sector Rank'].rolling(window=long_term, min_periods=1).mean()
             # Industry
             df_selected_industry[short_term_col] = df_selected_industry['Ind Group Rank'].rolling(window=short_term, min_periods=1).mean()
             df_selected_industry[long_term_col] = df_selected_industry['Ind Group Rank'].rolling(window=long_term, min_periods=1).mean()
 
         elif sma_ema == 'EMA':
             # Sector
-            df_sector_rank[short_term_col] = df_sector_rank['sector_rank'].ewm(span=short_term, adjust=False).mean()
-            df_sector_rank[long_term_col] =  df_sector_rank['sector_rank'].ewm(span=long_term, adjust=False).mean()
+            df_sector_rank[short_term_col] = df_sector_rank['Sector Rank'].ewm(span=short_term, adjust=False).mean()
+            df_sector_rank[long_term_col] =  df_sector_rank['Sector Rank'].ewm(span=long_term, adjust=False).mean()
             # Industry
             df_selected_industry[short_term_col] = df_selected_industry['Ind Group Rank'].ewm(span=short_term, adjust=False).mean()
             df_selected_industry[long_term_col] =  df_selected_industry['Ind Group Rank'].ewm(span=long_term, adjust=False).mean()
@@ -111,8 +111,10 @@ def main():
         if st.checkbox('Plot Sector Ranking Graph'):
             st.header('IBD Sector Ranking')
 
-            fig = px.line(df_sector_rank, x=df_sector_rank.index, y=['sector_rank',df_sector_rank[short_term_col],df_sector_rank[long_term_col]],
-                          hover_name='Sector')
+            fig = px.line(df_sector_rank, x=df_sector_rank.index, y=['Sector Rank',df_sector_rank[short_term_col],df_sector_rank[long_term_col]],
+                          hover_name='Sector',
+                          color_discrete_map={'Sector Rank':'black',df_sector_rank[short_term_col]: 'green',df_sector_rank[long_term_col]: 'red'
+                        })
 
             fig.add_scatter(x=df_sector_rank[df_sector_rank['position'] == -1].index,
                             y=df_sector_rank[short_term_col][df_sector_rank['position'] == -1],
@@ -141,9 +143,11 @@ def main():
             # create buy and sell column, to easily identify the triggers
             df_sector_rank['buy_sell'] = np.where(df_sector_rank['position'] == -1,'BUY','SELL')
             # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
-            st.markdown(filedownload(df_sector_rank[['Sector','sector_rank',short_term_col,long_term_col,'buy_sell']].loc[(df_sector_rank['position'].isin([-1,1]))],selected_sector), unsafe_allow_html=True)
+            st.markdown(filedownload(df_sector_rank[['Sector','Sector Rank',short_term_col,long_term_col,'buy_sell']].loc[(df_sector_rank['position'].isin([-1,1]))],selected_sector), unsafe_allow_html=True)
+            # sort df desc order
+            sorted_sector_df = df_sector_rank.sort_index(ascending=False)
             # write df to streamlit app
-            st.write(df_sector_rank[['Sector','sector_rank','buy_sell']].loc[(df_sector_rank['position'].isin([-1,1]))])
+            st.write(sorted_sector_df[['Sector','Sector Rank','buy_sell']].loc[(sorted_sector_df['position'].isin([-1,1]))].head(3))
 
             return st.plotly_chart(fig)
 
@@ -151,7 +155,9 @@ def main():
             st.header('IBD Industry Group Ranking')
 
             fig = px.line(df_selected_industry, x=df_selected_industry.index, y=['Ind Group Rank',df_selected_industry[short_term_col],df_selected_industry[long_term_col]],
-                          hover_name='Name')
+                          hover_name='Name',
+                          color_discrete_map={'Ind Group Rank':'black',df_selected_industry[short_term_col]: 'green',df_selected_industry[long_term_col]: 'red'
+                        })
 
             fig.add_scatter(x=df_selected_industry[df_selected_industry['position'] == -1].index,
                             y=df_selected_industry[short_term_col][df_selected_industry['position'] == -1],
@@ -181,8 +187,10 @@ def main():
             df_selected_industry['buy_sell'] = np.where(df_selected_industry['position'] == -1,'BUY','SELL')
             # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
             st.markdown(filedownload(df_selected_industry[['Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell']].loc[(df_selected_industry['position'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
+            # sort df desc order
+            sorted_sector_industry = df_selected_industry.sort_index(ascending=False)
             # write df to streamlit app
-            st.write(df_selected_industry[['Sector','Name','Ind Group Rank','buy_sell']].loc[(df_selected_industry['position'].isin([-1,1]))])
+            st.write(df_selected_industry[['Sector','Name','Ind Group Rank','buy_sell']].loc[(df_selected_industry['position'].isin([-1,1]))].head(3))
 
             return st.plotly_chart(fig)
 
