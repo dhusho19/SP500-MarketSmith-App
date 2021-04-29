@@ -113,7 +113,7 @@ def main():
 
             fig = px.line(df_sector_rank, x=df_sector_rank.index, y=['Sector Rank',df_sector_rank[short_term_col],df_sector_rank[long_term_col]],
                           hover_name='Sector',
-                          color_discrete_map={short_term_col:'green',long_term_col:'red'})
+                          color_discrete_map={short_term_col:'green',long_term_col:'red'}
                          )
 
             fig.add_scatter(x=df_sector_rank[df_sector_rank['position'] == -1].index,
