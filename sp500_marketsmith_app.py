@@ -142,12 +142,12 @@ def main():
                 st.subheader('Buy & Sell DataFrame for ' + selected_sector)
                 # create buy and sell column, to easily identify the triggers
                 df_sector_rank['buy_sell'] = np.where(df_sector_rank['position'] == -1,'BUY','SELL')
-                # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
-                st.markdown(filedownload(df_sector_rank[['Sector','Sector Rank',short_term_col,long_term_col,'buy_sell']].loc[(df_sector_rank['position'].isin([-1,1]))],selected_sector), unsafe_allow_html=True)
                 # sort df desc order
                 sorted_sector_df = df_sector_rank.sort_index(ascending=False)
+                # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
+                st.markdown(filedownload(sorted_sector_df[[sorted_sector_df.index,'Sector','Sector Rank',short_term_col,long_term_col,'buy_sell']].loc[(sorted_sector_df['position'].isin([-1,1]))],selected_sector), unsafe_allow_html=True)
                 # write df to streamlit app
-                st.write(sorted_sector_df[[sorted_sector_df.index,'Sector','Sector Rank','buy_sell']].loc[(sorted_sector_df['position'].isin([-1,1]))].head(3))
+                st.write(sorted_sector_df[['Sector','Sector Rank','buy_sell']].loc[(sorted_sector_df['position'].isin([-1,1]))].head(3))
 
             return st.plotly_chart(fig)
 
@@ -185,12 +185,12 @@ def main():
                 st.subheader('Buy & Sell DataFrame for ' + selected_industry)
                 # create buy and sell column, to easily identify the triggers
                 df_selected_industry['buy_sell'] = np.where(df_selected_industry['position'] == -1,'BUY','SELL')
-                # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
-                st.markdown(filedownload(df_selected_industry[['Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell']].loc[(df_selected_industry['position'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
                 # sort df desc order
-                sorted_sector_industry = df_selected_industry.sort_index(ascending=False)
+                sorted_industry_df = df_selected_industry.sort_index(ascending=False)
+                # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
+                st.markdown(filedownload(sorted_industry_df[[sorted_industry_df.index,'Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell']].loc[(sorted_industry_df['position'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
                 # write df to streamlit app
-                st.write(sorted_sector_industry[[sorted_sector_industry.index,'Sector','Name','Ind Group Rank','buy_sell']].loc[(sorted_sector_industry['position'].isin([-1,1]))].head(3))
+                st.write(sorted_industry_df[['Sector','Name','Ind Group Rank','buy_sell']].loc[(sorted_industry_df['position'].isin([-1,1]))].head(3))
 
             return st.plotly_chart(fig)
 
