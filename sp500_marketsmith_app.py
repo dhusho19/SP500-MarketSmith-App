@@ -66,7 +66,7 @@ def main():
         df_selected_sector['weight'] = df_selected_sector['Ind Mkt Val (bil)']/df_selected_sector['total_mkt_val']
         # use the newly created weight column to calculate sector rank
         df_selected_sector['Sector Rank'] = df_selected_sector['weight']*df_selected_sector['Ind Group Rank']
-        #st.write(df_selected_sector)
+
 
         df_sector_rank = df_selected_sector.groupby([df_selected_sector.index,'Sector'])['Sector Rank'].sum().reset_index()
         df_sector_rank.set_index('Date',inplace=True)
@@ -147,7 +147,7 @@ def main():
                 # sort df desc order
                 sorted_sector_df = df_sector_rank.sort_index(ascending=False)
                 # write df to streamlit app
-                st.write(sorted_sector_df[['Sector','Sector Rank','buy_sell']].loc[(sorted_sector_df['position'].isin([-1,1]))].head(3))
+                st.write(sorted_sector_df[[sorted_sector_df.index,'Sector','Sector Rank','buy_sell']].loc[(sorted_sector_df['position'].isin([-1,1]))].head(3))
 
             return st.plotly_chart(fig)
 
@@ -190,7 +190,7 @@ def main():
                 # sort df desc order
                 sorted_sector_industry = df_selected_industry.sort_index(ascending=False)
                 # write df to streamlit app
-                st.write(df_selected_industry[['Sector','Name','Ind Group Rank','buy_sell']].loc[(df_selected_industry['position'].isin([-1,1]))].head(3))
+                st.write(sorted_sector_industry[[sorted_sector_industry.index,'Sector','Name','Ind Group Rank','buy_sell']].loc[(sorted_sector_industry['position'].isin([-1,1]))].head(3))
 
             return st.plotly_chart(fig)
 
