@@ -112,7 +112,8 @@ def main():
             st.header('IBD Sector Ranking')
 
             fig = px.line(df_sector_rank, x=df_sector_rank.index, y=['Sector Rank',df_sector_rank[short_term_col],df_sector_rank[long_term_col]],
-                          hover_name='Sector'
+                          hover_name='Sector',
+                          color_discrete_map={short_term_col:'green',long_term_col:'red'})
                          )
 
             fig.add_scatter(x=df_sector_rank[df_sector_rank['position'] == -1].index,
@@ -156,7 +157,8 @@ def main():
             st.header('IBD Industry Group Ranking')
 
             fig = px.line(df_selected_industry, x=df_selected_industry.index, y=['Ind Group Rank',df_selected_industry[short_term_col],df_selected_industry[long_term_col]],
-                          hover_name='Name'
+                          hover_name='Name',
+                          color_discrete_map={short_term_col:'green',long_term_col:'red'}
                          )
 
             fig.add_scatter(x=df_selected_industry[df_selected_industry['position'] == -1].index,
