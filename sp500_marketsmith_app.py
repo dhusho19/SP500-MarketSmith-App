@@ -144,10 +144,11 @@ def main():
                 df_sector_rank['buy_sell'] = np.where(df_sector_rank['position'] == -1,'BUY','SELL')
                 # sort df desc order
                 sorted_sector_df = df_sector_rank.sort_index(ascending=False)
+                sorted_sector_df.reset_index(inplace=True)
                 # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
-                st.markdown(filedownload(sorted_sector_df[[sorted_sector_df.index,'Sector','Sector Rank',short_term_col,long_term_col,'buy_sell']].loc[(sorted_sector_df['position'].isin([-1,1]))],selected_sector), unsafe_allow_html=True)
+                st.markdown(filedownload(sorted_sector_df.loc[:,['Date','Sector','Sector Rank',short_term_col,long_term_col,'buy_sell']].loc[(sorted_sector_df['position'].isin([-1,1]))],selected_sector), unsafe_allow_html=True)
                 # write df to streamlit app
-                st.write(sorted_sector_df[['Sector','Sector Rank','buy_sell']].loc[(sorted_sector_df['position'].isin([-1,1]))].head(3))
+                st.write(sorted_sector_df.loc[:,['Sector','Sector Rank','buy_sell']].loc[(sorted_sector_df['position'].isin([-1,1]))].head(3))
 
             return st.plotly_chart(fig)
 
@@ -187,10 +188,11 @@ def main():
                 df_selected_industry['buy_sell'] = np.where(df_selected_industry['position'] == -1,'BUY','SELL')
                 # sort df desc order
                 sorted_industry_df = df_selected_industry.sort_index(ascending=False)
+                sorted_industry_df.reset_index(inplace=True)
                 # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
-                st.markdown(filedownload(sorted_industry_df[[sorted_industry_df.index,'Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell']].loc[(sorted_industry_df['position'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
+                st.markdown(filedownload(sorted_industry_df.loc[:,['Date','Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell']].loc[(sorted_industry_df['position'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
                 # write df to streamlit app
-                st.write(sorted_industry_df[['Sector','Name','Ind Group Rank','buy_sell']].loc[(sorted_industry_df['position'].isin([-1,1]))].head(3))
+                st.write(sorted_industry_df.loc[:,['Sector','Name','Ind Group Rank','buy_sell']].loc[(sorted_industry_df['position'].isin([-1,1]))].head(3))
 
             return st.plotly_chart(fig)
 
