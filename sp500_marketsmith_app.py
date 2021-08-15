@@ -13,14 +13,19 @@ mv_options = ['SMA','EMA']
 sma_ema = st.sidebar.radio('',mv_options)
 short_term = st.sidebar.slider('ST', min_value=1,
                                         max_value=10,
-                                        value=4)
+                                        value=10)
+
+mid_term = st.sidebar.slider('IT', min_value=0,
+                                        max_value=50,
+                                        value=21)
 
 long_term = st.sidebar.slider('LT',  min_value=2,
                                         max_value=40,
-                                        value=10)
+                                        value=50)
 
 # column names for long and short moving average columns
 short_term_col = sma_ema + '_' + str(short_term)
+mid_term_col = sma_ema + '_' + str(mid_term)
 long_term_col = sma_ema + '_' + str(long_term)
 
 
@@ -86,7 +91,7 @@ def app():
         industry_crossover_strategy(df_selected_industry)
         plotting(df_sector_rank,df_selected_industry,selected_sector,selected_industry)
         st.markdown("""---""")
-        weekly_summary(df)
+        # weekly_summary(df)
 
     else:
         st.subheader("About")
@@ -98,11 +103,13 @@ def sector_crossover_strategy(df):
     if sma_ema == 'SMA':
         # Sector
         df[short_term_col] = df['Sector Rank'].rolling(window=short_term, min_periods=1).mean()
+        df[mid_term_col] = df['Sector Rank'].rolling(window=mid_term, min_periods=1).mean()
         df[long_term_col] = df['Sector Rank'].rolling(window=long_term, min_periods=1).mean()
 
     elif sma_ema == 'EMA':
         # Sector
         df[short_term_col] = df['Sector Rank'].ewm(span=short_term, adjust=False).mean()
+        df[mid_term_col] = df['Sector Rank'].ewm(span=mid_term, adjust=False).mean()
         df[long_term_col] =  df['Sector Rank'].ewm(span=long_term, adjust=False).mean()
 
     # signal alerts for crossover strategy Sector
@@ -115,11 +122,13 @@ def industry_crossover_strategy(df):
     if sma_ema == 'SMA':
         # Industry
         df[short_term_col] = df['Ind Group Rank'].rolling(window=short_term, min_periods=1).mean()
+        df[mid_term_col] = df['Ind Group Rank'].rolling(window=mid_term, min_periods=1).mean()
         df[long_term_col] = df['Ind Group Rank'].rolling(window=long_term, min_periods=1).mean()
 
     elif sma_ema == 'EMA':
         # Industry
         df[short_term_col] = df['Ind Group Rank'].ewm(span=short_term, adjust=False).mean()
+        df[mid_term_col] = df['Ind Group Rank'].ewm(span=mid_term, adjust=False).mean()
         df[long_term_col] =  df['Ind Group Rank'].ewm(span=long_term, adjust=False).mean()
 
     # signal alerts for crossover strategy Industry
@@ -135,9 +144,9 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
     if st.checkbox('Plot Sector Ranking Graph'):
         st.subheader('IBD Sector Ranking')
 
-        fig = px.line(df_sector_rank, x=df_sector_rank.index, y=['Sector Rank',df_sector_rank[short_term_col],df_sector_rank[long_term_col]],
-                        hover_name='Sector',
-                        color_discrete_map={short_term_col:'green',long_term_col:'red'}
+        fig = px.line(df_sector_rank, x=df_sector_rank.index, y=['Sector Rank',df_sector_rank[short_term_col],df_sector_rank[mid_term_col],df_sector_rank[long_term_col]],
+                        hover_name='Sector', template = 'plotly_dark',
+                        color_discrete_map={'Sector Rank':'white', short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
                          )
 
         fig.add_scatter(x=df_sector_rank[df_sector_rank['position'] == -1].index,
@@ -179,9 +188,9 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
     if st.checkbox('Plot IG Ranking Graph'):
         st.subheader('IBD Industry Group Ranking')
 
-        fig = px.line(df_selected_industry, x=df_selected_industry.index, y=['Ind Group Rank',df_selected_industry[short_term_col],df_selected_industry[long_term_col]],
-                        hover_name='Name',
-                        color_discrete_map={short_term_col:'green',long_term_col:'red'}
+        fig = px.line(df_selected_industry, x=df_selected_industry.index, y=['Ind Group Rank',df_selected_industry[short_term_col],df_sector_rank[mid_term_col],df_selected_industry[long_term_col]],
+                        hover_name='Name',template = 'plotly_dark',
+                        color_discrete_map={'Sector Rank':'white',short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
                         )
 
         fig.add_scatter(x=df_selected_industry[df_selected_industry['position'] == -1].index,
@@ -220,21 +229,6 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
             st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank','buy_sell']].loc[(sorted_industry_df['position'].isin([-1,1]))].head(3))
 
         return st.plotly_chart(fig)
-
-def weekly_summary(df):
-    max_date = df.index.max()
-    days = datetime.timedelta(7)
-    new_date = max_date - days
-    mask = (df.index >= new_date)
-    df = df.loc[mask]
-
-    industry_crossover_strategy(df)
-    df['BUY_SELL'] = np.where(df['position'] == -1,'BUY','SELL')
-    st.header('IG Weekly Summary')
-    st.write(df.loc[:,['Symbol','Sector','Name','Ind Group Rank','Ind Mkt Val (bil)','BUY_SELL']])
-    df.reset_index(inplace=True)
-    st.markdown(filedownload(df.loc[:,['Date','Symbol','Sector','Name','Ind Group Rank','Ind Mkt Val (bil)','BUY_SELL']], 'Industry Weekly') ,unsafe_allow_html=True)
-
 
 # download buy and sell data
 def filedownload(df, sector_ig):
