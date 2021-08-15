@@ -19,9 +19,9 @@ mid_term = st.sidebar.slider('IT', min_value=0,
                                         max_value=50,
                                         value=21)
 
-long_term = st.sidebar.slider('LT',  min_value=2,
-                                        max_value=40,
-                                        value=50)
+long_term = st.sidebar.slider('LT',  min_value=21,
+                                        max_value=200,
+                                        value=200)
 
 # column names for long and short moving average columns
 short_term_col = sma_ema + '_' + str(short_term)
@@ -188,9 +188,9 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
     if st.checkbox('Plot IG Ranking Graph'):
         st.subheader('IBD Industry Group Ranking')
 
-        fig = px.line(df_selected_industry, x=df_selected_industry.index, y=['Ind Group Rank',df_selected_industry[short_term_col],df_sector_rank[mid_term_col],df_selected_industry[long_term_col]],
+        fig = px.line(df_selected_industry, x=df_selected_industry.index, y=['Ind Group Rank',df_selected_industry[short_term_col],df_selected_industry[mid_term_col],df_selected_industry[long_term_col]],
                         hover_name='Name',template = 'plotly_dark',
-                        color_discrete_map={'Sector Rank':'white',short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
+                        color_discrete_map={'Ind Group Rank':'white',short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
                         )
 
         fig.add_scatter(x=df_selected_industry[df_selected_industry['position'] == -1].index,
