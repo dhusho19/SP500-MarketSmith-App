@@ -21,7 +21,7 @@ mid_term = st.sidebar.slider('IT', min_value=0,
 
 long_term = st.sidebar.slider('LT',  min_value=21,
                                         max_value=200,
-                                        value=200)
+                                        value=50)
 
 # column names for long and short moving average columns
 short_term_col = sma_ema + '_' + str(short_term)
@@ -91,7 +91,8 @@ def app():
         industry_crossover_strategy(df_selected_industry)
         plotting(df_sector_rank,df_selected_industry,selected_sector,selected_industry)
         st.markdown("""---""")
-        # weekly_summary(df)
+        st.header('IG Summary')
+        summary(df)
 
     else:
         st.subheader("About")
@@ -113,10 +114,13 @@ def sector_crossover_strategy(df):
         df[long_term_col] =  df['Sector Rank'].ewm(span=long_term, adjust=False).mean()
 
     # signal alerts for crossover strategy Sector
-    df['alert'] = 0.0
-    df['alert'] = np.where(df[short_term_col]>df[long_term_col], 1.0, 0.0)
+    df['alert_st'] = 0.0
+    df['alert_st'] = np.where(df[short_term_col]>df[mid_term_col], 1.0, 0.0)
+    df['alert_lt'] = 0.0
+    df['alert_lt'] = np.where(df[mid_term_col]>df[long_term_col], 1.0, 0.0)
     # create a new column 'Position' which is a day-to-day difference of the alert column.
-    df['position'] = df['alert'].diff()
+    df['position_st'] = df['alert_st'].diff()
+    df['position_lt'] = df['alert_lt'].diff()
 
 def industry_crossover_strategy(df):
     if sma_ema == 'SMA':
@@ -131,11 +135,14 @@ def industry_crossover_strategy(df):
         df[mid_term_col] = df['Ind Group Rank'].ewm(span=mid_term, adjust=False).mean()
         df[long_term_col] =  df['Ind Group Rank'].ewm(span=long_term, adjust=False).mean()
 
-    # signal alerts for crossover strategy Industry
-    df['alert'] = 0.0
-    df['alert'] = np.where(df[short_term_col]>df[long_term_col], 1.0, 0.0)
+    # signal alerts for crossover strategy Sector
+    df['alert_st'] = 0.0
+    df['alert_st'] = np.where(df[short_term_col]>df[mid_term_col], 1.0, 0.0)
+    df['alert_lt'] = 0.0
+    df['alert_lt'] = np.where(df[mid_term_col]>df[long_term_col], 1.0, 0.0)
     # create a new column 'Position' which is a day-to-day difference of the alert column.
-    df['position'] = df['alert'].diff()
+    df['position_st'] = df['alert_st'].diff()
+    df['position_lt'] = df['alert_lt'].diff()
 
 def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_industry):
 
@@ -149,19 +156,33 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
                         color_discrete_map={'Sector Rank':'white', short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
                          )
 
-        fig.add_scatter(x=df_sector_rank[df_sector_rank['position'] == -1].index,
-                        y=df_sector_rank[short_term_col][df_sector_rank['position'] == -1],
-                        name= 'Buy',
+        fig.add_scatter(x=df_sector_rank[df_sector_rank['position_st'] == -1].index,
+                        y=df_sector_rank[short_term_col][df_sector_rank['position_st'] == -1],
+                        name= 'ST Buy',
                         mode='markers',
                         marker_symbol='star-triangle-up',
                         marker_color='green', marker_size=15)
 
-        fig.add_scatter(x=df_sector_rank[df_sector_rank['position'] == 1].index,
-                        y=df_sector_rank[short_term_col][df_sector_rank['position'] == 1],
-                        name= 'Sell',
+        fig.add_scatter(x=df_sector_rank[df_sector_rank['position_st'] == 1].index,
+                        y=df_sector_rank[short_term_col][df_sector_rank['position_st'] == 1],
+                        name= 'ST Sell',
                         mode='markers',
                         marker_symbol='star-triangle-down',
                         marker_color='red', marker_size=15)
+
+        fig.add_scatter(x=df_sector_rank[df_sector_rank['position_lt'] == -1].index,
+                        y=df_sector_rank[mid_term_col][df_sector_rank['position_lt'] == -1],
+                        name= 'LT Buy',
+                        mode='markers',
+                        marker_symbol='star-triangle-up',
+                        marker_color='blue', marker_size=15)
+
+        fig.add_scatter(x=df_sector_rank[df_sector_rank['position_lt'] == 1].index,
+                        y=df_sector_rank[mid_term_col][df_sector_rank['position_lt'] == 1],
+                        name= 'LT Sell',
+                        mode='markers',
+                        marker_symbol='star-triangle-down',
+                        marker_color='orange', marker_size=15)
 
         fig.update_layout(title=selected_sector,
                         xaxis_title="Date",
@@ -174,14 +195,16 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
         if st.checkbox('Buy & Sell Sector Data'):
             st.subheader('Buy & Sell DataFrame for ' + selected_sector)
             # create buy and sell column, to easily identify the triggers
-            df_sector_rank['buy_sell'] = np.where(df_sector_rank['position'] == -1,'BUY','SELL')
+            df_sector_rank['buy_sell_st'] = np.where(df_sector_rank['position_st'] == -1,'BUY','SELL')
+            df_sector_rank['buy_sell_lt'] = np.where(df_sector_rank['position_lt'] == -1,'BUY','SELL')
             # sort df desc order
             sorted_sector_df = df_sector_rank.sort_index(ascending=False)
             sorted_sector_df.reset_index(inplace=True)
             # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
-            st.markdown(filedownload(sorted_sector_df.loc[:,['Date','Sector','Sector Rank',short_term_col,long_term_col,'buy_sell']].loc[(sorted_sector_df['position'].isin([-1,1]))],selected_sector), unsafe_allow_html=True)
+            st.markdown(filedownload(sorted_sector_df.loc[:,['Date','Sector','Sector Rank',short_term_col,long_term_col,'buy_sell_st']].loc[(sorted_sector_df['position_st'].isin([-1,1]))],selected_sector), unsafe_allow_html=True)
             # write df to streamlit app
-            st.write(sorted_sector_df.loc[:,['Date','Sector','Sector Rank','buy_sell']].loc[(sorted_sector_df['position'].isin([-1,1]))].head(3))
+            st.write(sorted_sector_df.loc[:,['Date','Sector','Sector Rank','buy_sell_st']].loc[(sorted_sector_df['position_st'].isin([-1,1]))].head(3))
+            #st.write(sorted_sector_df.loc[:,['Date','Sector','Sector Rank','buy_sell']].loc[(sorted_sector_df['position_lt'].isin([-1,1]))].head(3))
 
         return st.plotly_chart(fig)
 
@@ -193,19 +216,33 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
                         color_discrete_map={'Ind Group Rank':'white',short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
                         )
 
-        fig.add_scatter(x=df_selected_industry[df_selected_industry['position'] == -1].index,
-                        y=df_selected_industry[short_term_col][df_selected_industry['position'] == -1],
-                        name= 'Buy',
+        fig.add_scatter(x=df_selected_industry[df_selected_industry['position_st'] == -1].index,
+                        y=df_selected_industry[short_term_col][df_selected_industry['position_st'] == -1],
+                        name= 'ST Buy',
                         mode='markers',
                         marker_symbol='star-triangle-up',
                         marker_color='green', marker_size=15)
 
-        fig.add_scatter(x=df_selected_industry[df_selected_industry['position'] == 1].index,
-                        y=df_selected_industry[short_term_col][df_selected_industry['position'] == 1],
-                        name= 'Sell',
+        fig.add_scatter(x=df_selected_industry[df_selected_industry['position_st'] == 1].index,
+                        y=df_selected_industry[short_term_col][df_selected_industry['position_st'] == 1],
+                        name= 'ST Sell',
                         mode='markers',
                         marker_symbol='star-triangle-down',
                         marker_color='red', marker_size=15)
+
+        fig.add_scatter(x=df_selected_industry[df_selected_industry['position_lt'] == -1].index,
+                        y=df_selected_industry[mid_term_col][df_selected_industry['position_lt'] == -1],
+                        name= 'LT Buy',
+                        mode='markers',
+                        marker_symbol='star-triangle-up',
+                        marker_color='blue', marker_size=15)
+
+        fig.add_scatter(x=df_selected_industry[df_selected_industry['position_lt'] == 1].index,
+                        y=df_selected_industry[mid_term_col][df_selected_industry['position_lt'] == 1],
+                        name= 'LT Sell',
+                        mode='markers',
+                        marker_symbol='star-triangle-down',
+                        marker_color='orange', marker_size=15)
 
         fig.update_layout(
                         title=selected_industry,
@@ -219,20 +256,54 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
         if st.checkbox('Buy & Sell IG Data'):
             st.subheader('Buy & Sell DataFrame for ' + selected_industry)
             # create buy and sell column, to easily identify the triggers
-            df_selected_industry['buy_sell'] = np.where(df_selected_industry['position'] == -1,'BUY','SELL')
+            df_selected_industry['buy_sell_st'] = np.where(df_selected_industry['position_st'] == -1,'BUY','SELL')
+            df_selected_industry['buy_sell_lt'] = np.where(df_selected_industry['position_lt'] == -1,'BUY','SELL')
             # sort df desc order
             sorted_industry_df = df_selected_industry.sort_index(ascending=False)
             sorted_industry_df.reset_index(inplace=True)
             # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
-            st.markdown(filedownload(sorted_industry_df.loc[:,['Date','Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell']].loc[(sorted_industry_df['position'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
+            st.markdown(filedownload(sorted_industry_df.loc[:,['Date','Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell_st']].loc[(sorted_industry_df['position_st'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
             # write df to streamlit app
-            st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank','buy_sell']].loc[(sorted_industry_df['position'].isin([-1,1]))].head(3))
+            st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell_st','buy_sell_lt']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
+            #st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell']].loc[(sorted_industry_df['position_lt'].isin([-1,1]))].head(3))
 
         return st.plotly_chart(fig)
 
+def summary(df):
+    # calculate default moving averages full dataset
+    df['st'] = df.groupby('Name')['Ind Group Rank'].transform(lambda x: x.rolling(short_term, 1).mean())
+    df['it'] = df.groupby('Name')['Ind Group Rank'].transform(lambda x: x.rolling(mid_term, 1).mean())
+    df['lt'] = df.groupby('Name')['Ind Group Rank'].transform(lambda x: x.rolling(long_term, 1).mean())
+
+    max_date = df.index.max()
+    days = datetime.timedelta(1)
+    new_date = max_date - days
+    mask = (df.index > new_date)
+    df = df.loc[mask]
+
+        # signal alerts for crossover strategy Sector
+    df['alert_st'] = 0.0
+    df['alert_st'] = np.where(df['st']>df['it'], 1.0, 0.0)
+    df['alert_lt'] = 0.0
+    df['alert_lt'] = np.where(df['it']>df['lt'], 1.0, 0.0)
+    # create a new column 'Position' which is a day-to-day difference of the alert column.
+    df['position_st'] = df['alert_st'].diff()
+    df['position_lt'] = df['alert_lt'].diff()
+
+    df['buy_sell_st'] = np.where(df['position_st'] == -1,'BUY','SELL')
+    df['buy_sell_lt'] = np.where(df['position_lt'] == -1,'BUY','SELL')
+
+    # create a filtered df
+    df1 = df[(df['position_st'] != 0) & (df['position_lt'] != 0)]
+    # remove two columns
+    df1.drop(['alert_st', 'alert_lt','position_st','position_lt'], axis=1, inplace=True)
+    # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
+    st.markdown(filedownload(df1,'All IGs'), unsafe_allow_html=True)
+    st.write(df1)
+
 # download buy and sell data
 def filedownload(df, sector_ig):
-    csv = df.to_csv(index=False)
+    csv = df.to_csv(index=True)
     b64 = base64.b64encode(csv.encode()).decode()  # strings <-> bytes conversions
     href = f'<a href="data:file/csv;base64,{b64}" download="Buy Sell Triggers {sector_ig}.csv">Download to CSV File</a>'
     return href
