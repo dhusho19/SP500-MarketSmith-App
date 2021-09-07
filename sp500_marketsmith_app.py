@@ -293,13 +293,11 @@ def summary(df):
     df['buy_sell_st'] = np.where(df['position_st'] == -1,'BUY','SELL')
     df['buy_sell_lt'] = np.where(df['position_lt'] == -1,'BUY','SELL')
 
-    # create a filtered df
-    df1 = df[(df['position_st'] != 0) & (df['position_lt'] != 0)]
     # remove two columns
-    df1.drop(['alert_st', 'alert_lt','position_st','position_lt'], axis=1, inplace=True)
+    df.drop(['alert_st', 'alert_lt','position_st','position_lt'], axis=1, inplace=True)
     # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
-    st.markdown(filedownload(df1,'All IGs'), unsafe_allow_html=True)
-    st.write(df1)
+    st.markdown(filedownload(df,'All IGs'), unsafe_allow_html=True)
+    st.write(df)
 
 # download buy and sell data
 def filedownload(df, sector_ig):
