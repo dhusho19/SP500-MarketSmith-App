@@ -5,6 +5,8 @@ import streamlit as st
 import plotly.express as px
 import datetime
 
+pd.options.display.float_format = '{:.2f}'.format
+
 st.title('MS Sector & Industry Group Rotation')
 
 st.sidebar.header('Moving Averages')
@@ -275,13 +277,17 @@ def summary(df):
     df['it'] = df.groupby('Name')['Ind Group Rank'].transform(lambda x: x.rolling(mid_term, 1).mean())
     df['lt'] = df.groupby('Name')['Ind Group Rank'].transform(lambda x: x.rolling(long_term, 1).mean())
 
+    df['st'] = df['st'].astype('float32').round(2).astype('int')
+    df['it'] = df['it'].astype('float32').round(2).astype('int')
+    df['lt'] = df['lt'].astype('float32').round(2).astype('int')
+
     max_date = df.index.max()
     days = datetime.timedelta(1)
     new_date = max_date - days
     mask = (df.index > new_date)
     df = df.loc[mask]
 
-        # signal alerts for crossover strategy Sector
+    # signal alerts for crossover strategy Sector
     df['alert_st'] = 0.0
     df['alert_st'] = np.where(df['st']>df['it'], 1.0, 0.0)
     df['alert_lt'] = 0.0
@@ -290,11 +296,12 @@ def summary(df):
     df['position_st'] = df['alert_st'].diff()
     df['position_lt'] = df['alert_lt'].diff()
 
-    df['buy_sell_st'] = np.where(df['position_st'] == -1,'BUY','SELL')
-    df['buy_sell_lt'] = np.where(df['position_lt'] == -1,'BUY','SELL')
+    df['buy_sell_st'] = np.where(df['position_st'] == 1,'BUY','SELL')
+    df['buy_sell_lt'] = np.where(df['position_lt'] == 1,'BUY','SELL')
 
     # remove two columns
     df.drop(['alert_st', 'alert_lt','position_st','position_lt'], axis=1, inplace=True)
+
     # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
     st.markdown(filedownload(df,'All IGs'), unsafe_allow_html=True)
     st.write(df)
