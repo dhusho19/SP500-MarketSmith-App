@@ -292,14 +292,17 @@ def summary(df):
     df['alert_lt'] = 0.0
     df['alert_lt'] = np.where(df['it']>df['lt'], 1.0, 0.0)
     # create a new column 'Position' which is a day-to-day difference of the alert column.
-    df['position_st'] = df['alert_st'].diff()
-    df['position_lt'] = df['alert_lt'].diff()
+    #df['position_st'] = df['alert_st'].diff()
+    #df['position_lt'] = df['alert_lt'].diff()
 
-    df['buy_sell_st'] = np.where(df['position_st'] == 1,'SELL','BUY')
-    df['buy_sell_lt'] = np.where(df['position_lt'] == 1,'SELL','BUY')
+    df['buy_sell_st'] = np.where(df['alert_st'] == 1,'SELL','BUY')
+    df['buy_sell_lt'] = np.where(df['alert_lt'] == 1,'SELL','BUY')
+
+    #df['buy_sell_st'] = np.where(df['position_st'] == 1,'SELL','BUY')
+    #df['buy_sell_lt'] = np.where(df['position_lt'] == 1,'SELL','BUY')
 
     # remove two columns
-    # df.drop(['alert_st', 'alert_lt','position_st','position_lt'], axis=1, inplace=True)
+    df.drop(['alert_st', 'alert_lt'], axis=1, inplace=True)
 
     # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
     st.markdown(filedownload(df,'All IGs'), unsafe_allow_html=True)
