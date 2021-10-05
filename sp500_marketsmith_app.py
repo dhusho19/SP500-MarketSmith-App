@@ -267,7 +267,6 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
             st.markdown(filedownload(sorted_industry_df.loc[:,['Date','Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell_st']].loc[(sorted_industry_df['position_st'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
             # write df to streamlit app
             st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell_st','buy_sell_lt']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
-            #st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell']].loc[(sorted_industry_df['position_lt'].isin([-1,1]))].head(3))
 
         return st.plotly_chart(fig)
 
@@ -296,11 +295,11 @@ def summary(df):
     df['position_st'] = df['alert_st'].diff()
     df['position_lt'] = df['alert_lt'].diff()
 
-    df['buy_sell_st'] = np.where(df['position_st'] == 1,'BUY','SELL')
-    df['buy_sell_lt'] = np.where(df['position_lt'] == 1,'BUY','SELL')
+    df['buy_sell_st'] = np.where(df['position_st'] == 1,'SELL','BUY')
+    df['buy_sell_lt'] = np.where(df['position_lt'] == 1,'SELL','BUY')
 
     # remove two columns
-    df.drop(['alert_st', 'alert_lt','position_st','position_lt'], axis=1, inplace=True)
+    # df.drop(['alert_st', 'alert_lt','position_st','position_lt'], axis=1, inplace=True)
 
     # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
     st.markdown(filedownload(df,'All IGs'), unsafe_allow_html=True)
