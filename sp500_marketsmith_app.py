@@ -5,16 +5,14 @@ import streamlit as st
 import plotly.express as px
 import datetime
 
-pd.options.display.float_format = '{:.2f}'.format
-
 st.title('MS Sector & Industry Group Rotation')
 
 st.sidebar.header('Moving Averages')
 # Short and Long Term Moving Average filters
-mv_options = ['SMA','EMA']
+mv_options = ['EMA','SMA']
 sma_ema = st.sidebar.radio('',mv_options)
 short_term = st.sidebar.slider('ST', min_value=1,
-                                        max_value=10,
+                                        max_value=30,
                                         value=10)
 
 mid_term = st.sidebar.slider('IT', min_value=0,
@@ -29,7 +27,6 @@ long_term = st.sidebar.slider('LT',  min_value=21,
 short_term_col = sma_ema + '_' + str(short_term)
 mid_term_col = sma_ema + '_' + str(mid_term)
 long_term_col = sma_ema + '_' + str(long_term)
-
 
 
 def app():
@@ -83,6 +80,7 @@ def app():
         df_selected_sector['weight'] = df_selected_sector['Ind Mkt Val (bil)']/df_selected_sector['total_mkt_val']
         # use the newly created weight column to calculate sector rank
         df_selected_sector['Sector Rank'] = df_selected_sector['weight']*df_selected_sector['Ind Group Rank']
+        df_selected_sector['Sector Rank'] = df_selected_sector['Sector Rank'].astype('float32').round(2).astype('int')
 
         df_sector_rank = df_selected_sector.groupby([df_selected_sector.index,'Sector'])['Sector Rank'].sum().reset_index()
         df_sector_rank.set_index('Date',inplace=True)
@@ -197,15 +195,15 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
         if st.checkbox('Buy & Sell Sector Data'):
             st.subheader('Buy & Sell DataFrame for ' + selected_sector)
             # create buy and sell column, to easily identify the triggers
-            df_sector_rank['buy_sell_st'] = np.where(df_sector_rank['position_st'] == -1,'BUY','SELL')
-            df_sector_rank['buy_sell_lt'] = np.where(df_sector_rank['position_lt'] == -1,'BUY','SELL')
+            df_sector_rank['Buy Sell ST'] = np.where(df_sector_rank['position_st'] == -1,'BUY','SELL')
+            df_sector_rank['Buy Sell LT'] = np.where(df_sector_rank['position_lt'] == -1,'BUY','SELL')
             # sort df desc order
             sorted_sector_df = df_sector_rank.sort_index(ascending=False)
             sorted_sector_df.reset_index(inplace=True)
             # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
-            st.markdown(filedownload(sorted_sector_df.loc[:,['Date','Sector','Sector Rank',short_term_col,long_term_col,'buy_sell_st']].loc[(sorted_sector_df['position_st'].isin([-1,1]))],selected_sector), unsafe_allow_html=True)
+            st.markdown(filedownload(sorted_sector_df.loc[:,['Date','Sector','Sector Rank',short_term_col,long_term_col,'Buy Sell ST']].loc[(sorted_sector_df['position_st'].isin([-1,1]))],selected_sector), unsafe_allow_html=True)
             # write df to streamlit app
-            st.write(sorted_sector_df.loc[:,['Date','Sector','Sector Rank','buy_sell_st']].loc[(sorted_sector_df['position_st'].isin([-1,1]))].head(3))
+            st.write(sorted_sector_df.loc[:,['Date','Sector','Sector Rank','Buy Sell ST']].loc[(sorted_sector_df['position_st'].isin([-1,1]))].head(3))
             #st.write(sorted_sector_df.loc[:,['Date','Sector','Sector Rank','buy_sell']].loc[(sorted_sector_df['position_lt'].isin([-1,1]))].head(3))
 
         return st.plotly_chart(fig)
@@ -258,27 +256,33 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
         if st.checkbox('Buy & Sell IG Data'):
             st.subheader('Buy & Sell DataFrame for ' + selected_industry)
             # create buy and sell column, to easily identify the triggers
-            df_selected_industry['buy_sell_st'] = np.where(df_selected_industry['position_st'] == -1,'BUY','SELL')
-            df_selected_industry['buy_sell_lt'] = np.where(df_selected_industry['position_lt'] == -1,'BUY','SELL')
+            df_selected_industry['Buy Sell ST'] = np.where(df_selected_industry['position_st'] == -1,'BUY','SELL')
+            df_selected_industry['Buy Sell LT'] = np.where(df_selected_industry['position_lt'] == -1,'BUY','SELL')
             # sort df desc order
             sorted_industry_df = df_selected_industry.sort_index(ascending=False)
             sorted_industry_df.reset_index(inplace=True)
+
+            # Rounding formatting
+            sorted_industry_df[short_term_col] = sorted_industry_df[short_term_col].astype('float32').round(2).astype('int')
+            sorted_industry_df[long_term_col] = sorted_industry_df[long_term_col].astype('float32').round(2).astype('int')
+
             # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
-            st.markdown(filedownload(sorted_industry_df.loc[:,['Date','Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell_st']].loc[(sorted_industry_df['position_st'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
+            st.markdown(filedownload(sorted_industry_df.loc[:,['Date','Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'Buy Sell ST']].loc[(sorted_industry_df['position_st'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
             # write df to streamlit app
-            st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'buy_sell_st','buy_sell_lt']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
+            st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'Buy Sell ST','Buy Sell LT']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
 
         return st.plotly_chart(fig)
 
 def summary(df):
     # calculate default moving averages full dataset
-    df['st'] = df.groupby('Name')['Ind Group Rank'].transform(lambda x: x.rolling(short_term, 1).mean())
-    df['it'] = df.groupby('Name')['Ind Group Rank'].transform(lambda x: x.rolling(mid_term, 1).mean())
-    df['lt'] = df.groupby('Name')['Ind Group Rank'].transform(lambda x: x.rolling(long_term, 1).mean())
+    df['ST'] = df.groupby('Name')['Ind Group Rank'].transform(lambda x: x.rolling(short_term, 1).mean())
+    df['IT'] = df.groupby('Name')['Ind Group Rank'].transform(lambda x: x.rolling(mid_term, 1).mean())
+    df['LT'] = df.groupby('Name')['Ind Group Rank'].transform(lambda x: x.rolling(long_term, 1).mean())
 
-    df['st'] = df['st'].astype('float32').round(2).astype('int')
-    df['it'] = df['it'].astype('float32').round(2).astype('int')
-    df['lt'] = df['lt'].astype('float32').round(2).astype('int')
+    # Round Formatting
+    df['ST'] = df['ST'].astype('float32').round(2).astype('int')
+    df['IT'] = df['IT'].astype('float32').round(2).astype('int')
+    df['LT'] = df['LT'].astype('float32').round(2).astype('int')
 
     max_date = df.index.max()
     days = datetime.timedelta(1)
@@ -288,12 +292,12 @@ def summary(df):
 
     # signal alerts for crossover strategy Sector
     df['alert_st'] = 0.0
-    df['alert_st'] = np.where(df['st']>df['it'], 1.0, 0.0)
+    df['alert_st'] = np.where(df['ST']>df['IT'], 1.0, 0.0)
     df['alert_lt'] = 0.0
-    df['alert_lt'] = np.where(df['it']>df['lt'], 1.0, 0.0)
+    df['alert_lt'] = np.where(df['IT']>df['LT'], 1.0, 0.0)
 
-    df['buy_sell_st'] = np.where(df['alert_st'] == 1,'SELL','BUY')
-    df['buy_sell_lt'] = np.where(df['alert_lt'] == 1,'SELL','BUY')
+    df['Buy Sell ST'] = np.where(df['alert_st'] == 1,'SELL','BUY')
+    df['Buy Sell LT'] = np.where(df['alert_lt'] == 1,'SELL','BUY')
 
     # remove two columns
     df.drop(['alert_st', 'alert_lt'], axis=1, inplace=True)
