@@ -21,7 +21,7 @@ mid_term = st.sidebar.slider('IT', min_value=0,
 
 long_term = st.sidebar.slider('LT',  min_value=21,
                                         max_value=200,
-                                        value=50)
+                                        value=100)
 
 # column names for long and short moving average columns
 short_term_col = sma_ema + '_' + str(short_term)
@@ -195,7 +195,7 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
         if st.checkbox('Buy & Sell Sector Data'):
             st.subheader('Buy & Sell DataFrame for ' + selected_sector)
             # create buy and sell column, to easily identify the triggers
-            df_sector_rank['Buy Sell ST'] = np.where(df_sector_rank['position_st'] == -1,'BUY','SELL')
+            df_sector_rank['Buy Sell ST'] = np.where(df_sector_rank['position_st'] == 0,'BUY','SELL')
             df_sector_rank['Buy Sell LT'] = np.where(df_sector_rank['position_lt'] == -1,'BUY','SELL')
             # sort df desc order
             sorted_sector_df = df_sector_rank.sort_index(ascending=False)
@@ -256,7 +256,7 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
         if st.checkbox('Buy & Sell IG Data'):
             st.subheader('Buy & Sell DataFrame for ' + selected_industry)
             # create buy and sell column, to easily identify the triggers
-            df_selected_industry['Buy Sell ST'] = np.where(df_selected_industry['position_st'] == -1,'BUY','SELL')
+            df_selected_industry['Buy Sell ST'] = np.where(df_selected_industry['position_st'] == 0,'BUY','SELL')
             df_selected_industry['Buy Sell LT'] = np.where(df_selected_industry['position_lt'] == -1,'BUY','SELL')
             # sort df desc order
             sorted_industry_df = df_selected_industry.sort_index(ascending=False)
@@ -274,37 +274,45 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
         return st.plotly_chart(fig)
 
 def summary(df):
-    # calculate default moving averages full dataset
-    df['ST'] = df.groupby('Name')['Ind Group Rank'].transform(lambda x: x.rolling(short_term, 1).mean())
-    df['IT'] = df.groupby('Name')['Ind Group Rank'].transform(lambda x: x.rolling(mid_term, 1).mean())
-    df['LT'] = df.groupby('Name')['Ind Group Rank'].transform(lambda x: x.rolling(long_term, 1).mean())
+    st.header('IG Summary')
+    if st.checkbox('IG'):
+        df.reset_index(inplace=True)
+        industry_lst = sorted(df['Name'].unique().tolist())
 
-    # Round Formatting
-    df['ST'] = df['ST'].astype('float32').round(2).astype('int')
-    df['IT'] = df['IT'].astype('float32').round(2).astype('int')
-    df['LT'] = df['LT'].astype('float32').round(2).astype('int')
+        lst = []
+        for i in industry_lst:
+            df_industry = df.loc[(df['Name'] == i)]
+            industry_crossover_strategy(df_industry)
+            # create buy and sell column, to easily identify the triggers
+            df_industry['Buy Sell ST'] = np.where(df_industry['position_st'] == 0,'BUY','SELL')
+            df_industry['Buy Sell LT'] = np.where(df_industry['position_lt'] == -1,'BUY','SELL')
+            lst.append(df_industry)
+        arr = np.asarray(lst)
 
-    max_date = df.index.max()
-    days = datetime.timedelta(1)
-    new_date = max_date - days
-    mask = (df.index > new_date)
-    df = df.loc[mask]
+        df1 = pd.DataFrame(arr.reshape(-1, 15), columns=['Date','Symbol','Name','Sector','Ind Group Rank','Ind Mkt Val (bil)',short_term_col,mid_term_col,long_term_col,'alert st','alert lt','pos_st','pos_lt','Buy Sell ST','Buy Sell LT'])
+        df1.index = np.repeat(np.arange(arr.shape[0]), arr.shape[1]) + 1
+        df1.index.name = 'id'
 
-    # signal alerts for crossover strategy Sector
-    df['alert_st'] = 0.0
-    df['alert_st'] = np.where(df['ST']>df['IT'], 1.0, 0.0)
-    df['alert_lt'] = 0.0
-    df['alert_lt'] = np.where(df['IT']>df['LT'], 1.0, 0.0)
+        df_st = df1.loc[df1['pos_st'].isin([-1,1])]
+        df_lt = df1.loc[df1['pos_lt'].isin([-1,1])]
+        frames = [df_st, df_lt]
+        df_final = pd.concat(frames)
+        df_final = df_final.groupby('Name').last().reset_index()
+        df_final.drop(['alert st','alert lt','pos_st','pos_lt'], axis=1, inplace=True)
 
-    df['Buy Sell ST'] = np.where(df['alert_st'] == 1,'SELL','BUY')
-    df['Buy Sell LT'] = np.where(df['alert_lt'] == 1,'SELL','BUY')
+        # Rounding formatting
+        df_final[short_term_col] = df_final[short_term_col].astype('float32').round(2).astype('int')
+        df_final[mid_term_col] = df_final[mid_term_col].astype('float32').round(2).astype('int')
+        df_final[long_term_col] = df_final[long_term_col].astype('float32').round(2).astype('int')
 
-    # remove two columns
-    df.drop(['alert_st', 'alert_lt'], axis=1, inplace=True)
+        st.write(df_final)
 
-    # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
-    st.markdown(filedownload(df,'All IGs'), unsafe_allow_html=True)
-    st.write(df)
+        csv = convert_df(df_final)
+        st.download_button(label="Download data as CSV",
+            data=csv,
+            file_name='IG_Latest_Signals.csv',
+            mime='text/csv',
+        )
 
 # download buy and sell data
 def filedownload(df, sector_ig):
@@ -312,6 +320,11 @@ def filedownload(df, sector_ig):
     b64 = base64.b64encode(csv.encode()).decode()  # strings <-> bytes conversions
     href = f'<a href="data:file/csv;base64,{b64}" download="Buy Sell Triggers {sector_ig}.csv">Download to CSV File</a>'
     return href
+
+def convert_df(df):
+     # IMPORTANT: Cache the conversion to prevent computation on every rerun
+     return df.to_csv().encode('utf-8')
+
 
 if __name__ == '__main__':
     app()
