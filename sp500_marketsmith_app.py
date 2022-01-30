@@ -91,7 +91,6 @@ def app():
         industry_crossover_strategy(df_selected_industry)
         plotting(df_sector_rank,df_selected_industry,selected_sector,selected_industry)
         st.markdown("""---""")
-        st.header('IG Summary')
         summary(df)
 
     else:
