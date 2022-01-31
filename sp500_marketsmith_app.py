@@ -194,7 +194,7 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
         if st.checkbox('Buy & Sell Sector Data'):
             st.subheader('Buy & Sell DataFrame for ' + selected_sector)
             # create buy and sell column, to easily identify the triggers
-            df_sector_rank['Buy Sell ST'] = np.where(df_sector_rank['position_st'] == 0,'BUY','SELL')
+            df_sector_rank['Buy Sell ST'] = np.where(df_sector_rank['position_st'] == -1,'BUY','SELL')
             df_sector_rank['Buy Sell LT'] = np.where(df_sector_rank['position_lt'] == -1,'BUY','SELL')
             # sort df desc order
             sorted_sector_df = df_sector_rank.sort_index(ascending=False)
@@ -255,7 +255,7 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
         if st.checkbox('Buy & Sell IG Data'):
             st.subheader('Buy & Sell DataFrame for ' + selected_industry)
             # create buy and sell column, to easily identify the triggers
-            df_selected_industry['Buy Sell ST'] = np.where(df_selected_industry['position_st'] == 0,'BUY','SELL')
+            df_selected_industry['Buy Sell ST'] = np.where(df_selected_industry['position_st'] == -1,'BUY','SELL')
             df_selected_industry['Buy Sell LT'] = np.where(df_selected_industry['position_lt'] == -1,'BUY','SELL')
             # sort df desc order
             sorted_industry_df = df_selected_industry.sort_index(ascending=False)
