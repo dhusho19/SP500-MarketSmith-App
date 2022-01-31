@@ -263,12 +263,13 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
 
             # Rounding formatting
             sorted_industry_df[short_term_col] = sorted_industry_df[short_term_col].astype('float32').round(2).astype('int')
+            sorted_industry_df[mid_term_col] = sorted_industry_df[mid_term_col].astype('float32').round(2).astype('int')
             sorted_industry_df[long_term_col] = sorted_industry_df[long_term_col].astype('float32').round(2).astype('int')
 
             # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
-            st.markdown(filedownload(sorted_industry_df.loc[:,['Date','Symbol','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'Buy Sell ST']].loc[(sorted_industry_df['position_st'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
+            st.markdown(filedownload(sorted_industry_df.loc[:,['Date','Symbol','Sector','Name','Ind Group Rank',short_term_col,mid_term_col,long_term_col,'Buy Sell ST']].loc[(sorted_industry_df['position_st'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
             # write df to streamlit app
-            st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank',short_term_col,long_term_col,'Buy Sell ST','Buy Sell LT']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
+            st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank',short_term_col,mid_term_col,long_term_col,'Buy Sell ST','Buy Sell LT']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
 
         return st.plotly_chart(fig)
 
@@ -283,8 +284,8 @@ def summary(df):
             df_industry = df.loc[(df['Name'] == i)]
             industry_crossover_strategy(df_industry)
             # create buy and sell column, to easily identify the triggers
-            df_industry['Buy Sell ST'] = np.where(df_industry['position_st'] == 0,'BUY','SELL')
-            df_industry['Buy Sell LT'] = np.where(df_industry['position_lt'] == -1,'BUY','SELL')
+            df_industry['Buy Sell ST'] = np.where(df_industry['alert_st'] == 0,'BUY','SELL')
+            df_industry['Buy Sell LT'] = np.where(df_industry['alert_lt'] == 0  ,'BUY','SELL')
             lst.append(df_industry)
         arr = np.asarray(lst)
 
