@@ -89,9 +89,9 @@ def app():
         # function calls
         sector_crossover_strategy(df_sector_rank)
         industry_crossover_strategy(df_selected_industry)
-        plotting(df_sector_rank,df_selected_industry,selected_sector,selected_industry)
-        st.markdown("""---""")
         summary(df)
+        st.markdown("""---""")
+        plotting(df_sector_rank,df_selected_industry,selected_sector,selected_industry)
 
     else:
         st.subheader("About")
@@ -118,7 +118,7 @@ def sector_crossover_strategy(df):
     df['alert_lt'] = 0.0
     df['alert_lt'] = np.where(df[mid_term_col]>df[long_term_col], 1.0, 0.0)
     # create a new column 'Position' which is a day-to-day difference of the alert column.
-    df['position_st'] = df['alert_st'].diff()
+    df['position_st'] = df['alert_st'].diff() # 1 is BUY
     df['position_lt'] = df['alert_lt'].diff()
 
 def industry_crossover_strategy(df):
@@ -134,7 +134,7 @@ def industry_crossover_strategy(df):
         df[mid_term_col] = df['Ind Group Rank'].ewm(span=mid_term, adjust=False).mean()
         df[long_term_col] =  df['Ind Group Rank'].ewm(span=long_term, adjust=False).mean()
 
-    # signal alerts for crossover strategy Sector
+    # signal alerts for crossover strategy Industry
     df['alert_st'] = 0.0
     df['alert_st'] = np.where(df[short_term_col]>df[mid_term_col], 1.0, 0.0)
     df['alert_lt'] = 0.0
@@ -269,9 +269,10 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
             # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
             st.markdown(filedownload(sorted_industry_df.loc[:,['Date','Symbol','Sector','Name','Ind Group Rank',short_term_col,mid_term_col,long_term_col,'Buy Sell ST']].loc[(sorted_industry_df['position_st'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
             # write df to streamlit app
-            st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank',short_term_col,mid_term_col,long_term_col,'Buy Sell ST','Buy Sell LT']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
+            st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank',short_term_col,mid_term_col,long_term_col,'position_st','position_lt','Buy Sell ST','Buy Sell LT']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
 
         return st.plotly_chart(fig)
+
 
 def summary(df):
     st.header('IG Summary')
@@ -283,22 +284,24 @@ def summary(df):
         for i in industry_lst:
             df_industry = df.loc[(df['Name'] == i)]
             industry_crossover_strategy(df_industry)
-            # create buy and sell column, to easily identify the triggers
-            df_industry['Buy Sell ST'] = np.where(df_industry['alert_st'] == 0,'BUY','SELL')
-            df_industry['Buy Sell LT'] = np.where(df_industry['alert_lt'] == 0  ,'BUY','SELL')
             lst.append(df_industry)
         arr = np.asarray(lst)
 
-        df1 = pd.DataFrame(arr.reshape(-1, 15), columns=['Date','Symbol','Name','Sector','Ind Group Rank','Ind Mkt Val (bil)',short_term_col,mid_term_col,long_term_col,'alert st','alert lt','pos_st','pos_lt','Buy Sell ST','Buy Sell LT'])
+        df1 = pd.DataFrame(arr.reshape(-1, 13), columns=['Date','Symbol','Name','Sector','Ind Group Rank','Ind Mkt Val (bil)',short_term_col,mid_term_col,long_term_col,'alert_st','alert_lt','position_st','position_lt'])
         df1.index = np.repeat(np.arange(arr.shape[0]), arr.shape[1]) + 1
         df1.index.name = 'id'
+        # create buy and sell column, to easily identify the triggers
+        df1['Buy Sell ST'] = np.where(df1['alert_st'] == 0,'BUY','SELL')
+        df1['Buy Sell LT'] = np.where(df1['alert_lt'] == 0,'BUY','SELL')
 
-        df_st = df1.loc[df1['pos_st'].isin([-1,1])]
-        df_lt = df1.loc[df1['pos_lt'].isin([-1,1])]
+        df_st = df1.loc[df1['position_st'].isin([-1,1])]
+        df_lt = df1.loc[df1['position_lt'].isin([-1,1])]
         frames = [df_st, df_lt]
         df_final = pd.concat(frames)
+        df_final.sort_values(by=['Date'], ascending=True, inplace=True)
+
         df_final = df_final.groupby('Name').last().reset_index()
-        df_final.drop(['alert st','alert lt','pos_st','pos_lt'], axis=1, inplace=True)
+        df_final.drop(['alert_st','alert_lt','position_st','position_lt'], axis=1, inplace=True)
 
         # Rounding formatting
         df_final[short_term_col] = df_final[short_term_col].astype('float32').round(2).astype('int')
