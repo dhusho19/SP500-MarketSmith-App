@@ -89,10 +89,10 @@ def app():
         # function calls
         sector_crossover_strategy(df_sector_rank)
         industry_crossover_strategy(df_selected_industry)
-        summary(df)
-        st.markdown("""---""")
+        #summary(df)
         plotting(df_sector_rank,df_selected_industry,selected_sector,selected_industry)
-
+        st.markdown("""---""")
+        summary(df)
     else:
         st.subheader("About")
         st.info("Built with Streamlit")
@@ -155,28 +155,28 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
                         color_discrete_map={'Sector Rank':'white', short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
                          )
 
-        fig.add_scatter(x=df_sector_rank[df_sector_rank['position_st'] == -1].index,
+        fig.add_scatter(x=df_sector_rank.loc[df_sector_rank['position_st'] == -1].index,
                         y=df_sector_rank[short_term_col][df_sector_rank['position_st'] == -1],
                         name= 'ST Buy',
                         mode='markers',
                         marker_symbol='star-triangle-up',
                         marker_color='green', marker_size=15)
 
-        fig.add_scatter(x=df_sector_rank[df_sector_rank['position_st'] == 1].index,
+        fig.add_scatter(x=df_sector_rank.loc[df_sector_rank['position_st'] == 1].index,
                         y=df_sector_rank[short_term_col][df_sector_rank['position_st'] == 1],
                         name= 'ST Sell',
                         mode='markers',
                         marker_symbol='star-triangle-down',
                         marker_color='red', marker_size=15)
 
-        fig.add_scatter(x=df_sector_rank[df_sector_rank['position_lt'] == -1].index,
+        fig.add_scatter(x=df_sector_rank.loc[df_sector_rank['position_lt'] == -1].index,
                         y=df_sector_rank[mid_term_col][df_sector_rank['position_lt'] == -1],
                         name= 'LT Buy',
                         mode='markers',
                         marker_symbol='star-triangle-up',
                         marker_color='blue', marker_size=15)
 
-        fig.add_scatter(x=df_sector_rank[df_sector_rank['position_lt'] == 1].index,
+        fig.add_scatter(x=df_sector_rank.loc[df_sector_rank['position_lt'] == 1].index,
                         y=df_sector_rank[mid_term_col][df_sector_rank['position_lt'] == 1],
                         name= 'LT Sell',
                         mode='markers',
@@ -189,6 +189,7 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
                         legend_title ='')
 
         fig.update_yaxes(autorange="reversed")
+        fig.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": "Sector Rank"})
 
         # checkbox to hide and show the buy & sell dataframe
         if st.checkbox('Buy & Sell Sector Data'):
@@ -215,28 +216,28 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
                         color_discrete_map={'Ind Group Rank':'white',short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
                         )
 
-        fig.add_scatter(x=df_selected_industry[df_selected_industry['position_st'] == -1].index,
+        fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_st'] == -1].index,
                         y=df_selected_industry[short_term_col][df_selected_industry['position_st'] == -1],
                         name= 'ST Buy',
                         mode='markers',
                         marker_symbol='star-triangle-up',
                         marker_color='green', marker_size=15)
 
-        fig.add_scatter(x=df_selected_industry[df_selected_industry['position_st'] == 1].index,
+        fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_st'] == 1].index,
                         y=df_selected_industry[short_term_col][df_selected_industry['position_st'] == 1],
                         name= 'ST Sell',
                         mode='markers',
                         marker_symbol='star-triangle-down',
                         marker_color='red', marker_size=15)
 
-        fig.add_scatter(x=df_selected_industry[df_selected_industry['position_lt'] == -1].index,
+        fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_lt'] == -1].index,
                         y=df_selected_industry[mid_term_col][df_selected_industry['position_lt'] == -1],
                         name= 'LT Buy',
                         mode='markers',
                         marker_symbol='star-triangle-up',
                         marker_color='blue', marker_size=15)
 
-        fig.add_scatter(x=df_selected_industry[df_selected_industry['position_lt'] == 1].index,
+        fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_lt'] == 1].index,
                         y=df_selected_industry[mid_term_col][df_selected_industry['position_lt'] == 1],
                         name= 'LT Sell',
                         mode='markers',
@@ -250,6 +251,7 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
                         legend_title ='')
 
         fig.update_yaxes(autorange="reversed")
+        fig.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": "Ind Group Rank"})
 
         # checkbox to hide and show the buy & sell dataframe
         if st.checkbox('Buy & Sell IG Data'):
@@ -278,8 +280,10 @@ def summary(df):
     st.header('IG Summary')
     if st.checkbox('IG'):
         df.reset_index(inplace=True)
+        # Create a IG list of all unqiue IG's
         industry_lst = sorted(df['Name'].unique().tolist())
 
+        # Iterate through each IG and load into a list & conver to an NumPy array
         lst = []
         for i in industry_lst:
             df_industry = df.loc[(df['Name'] == i)]
@@ -287,6 +291,7 @@ def summary(df):
             lst.append(df_industry)
         arr = np.asarray(lst)
 
+        # Load the array which is storing the data into a DataFrame
         df1 = pd.DataFrame(arr.reshape(-1, 13), columns=['Date','Symbol','Name','Sector','Ind Group Rank','Ind Mkt Val (bil)',short_term_col,mid_term_col,long_term_col,'alert_st','alert_lt','position_st','position_lt'])
         df1.index = np.repeat(np.arange(arr.shape[0]), arr.shape[1]) + 1
         df1.index.name = 'id'
@@ -294,13 +299,15 @@ def summary(df):
         df1['Buy Sell ST'] = np.where(df1['alert_st'] == 0,'BUY','SELL')
         df1['Buy Sell LT'] = np.where(df1['alert_lt'] == 0,'BUY','SELL')
 
+        # Filter Dataframes to only look at rows which are signals
         df_st = df1.loc[df1['position_st'].isin([-1,1])]
         df_lt = df1.loc[df1['position_lt'].isin([-1,1])]
         frames = [df_st, df_lt]
         df_final = pd.concat(frames)
         df_final.sort_values(by=['Date'], ascending=True, inplace=True)
 
-        df_final = df_final.groupby('Name').last().reset_index()
+        # Pull back the latest two signals per IG
+        df_final = df_final.groupby('Name').tail(2).reset_index(drop=True)
         df_final.drop(['alert_st','alert_lt','position_st','position_lt'], axis=1, inplace=True)
 
         # Rounding formatting
@@ -308,8 +315,16 @@ def summary(df):
         df_final[mid_term_col] = df_final[mid_term_col].astype('float32').round(2).astype('int')
         df_final[long_term_col] = df_final[long_term_col].astype('float32').round(2).astype('int')
 
+        # Sort DataFrame and reshape it to merge each IG onto the one row
+        df_final.sort_values(by=['Name','Date'], ascending=True, inplace=True)
+        df_final = pd.DataFrame(df_final.values.reshape(-1, df_final.shape[1] * 2),
+                           columns=['Date_2','Symbol_2','Name_2','Sector_2','Ind Group Rank_2','Ind Mkt Val (bil)_2','short_term_col_2','mid_term_col_2','long_term_col_2','Buy Sell ST_2','Buy Sell LT_2','Date_1','Symbol_1','Name_1','Sector_1','Ind Group Rank_1','Ind Mkt Val (bil)_1',short_term_col,mid_term_col,long_term_col,'Buy Sell ST_1','Buy Sell LT_1'])
+
+        # Re order the column structure
+        df_final = df_final.reindex(columns=['Date_1','Symbol_1','Name_1','Sector_1','Ind Group Rank_1','Ind Mkt Val (bil)_1',short_term_col,mid_term_col,long_term_col,'Buy Sell ST_1','Buy Sell LT_1','Date_2','Symbol_2','Name_2','Sector_2','Ind Group Rank_2','Ind Mkt Val (bil)_2','short_term_col_2','mid_term_col_2','long_term_col_2','Buy Sell ST_2','Buy Sell LT_2'])
         st.write(df_final)
 
+        # Call download function
         csv = convert_df(df_final)
         st.download_button(label="Download data as CSV",
             data=csv,
