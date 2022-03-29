@@ -92,9 +92,10 @@ def app():
         #summary(df)
         plotting(df_sector_rank,df_selected_industry,selected_sector,selected_industry)
         st.markdown("""---""")
-        df_daily_changes = summary(df)
+        #df_daily_changes =
+        summary(df)
         st.markdown("""---""")
-        daily_signal_changes(df_daily_changes)
+        #daily_signal_changes(df_daily_changes)
     else:
         st.subheader("About")
         st.info("Built with Streamlit")
@@ -295,7 +296,7 @@ def summary(df):
         # Create a IG list of all unqiue IG's
         industry_lst = sorted(df['Name'].unique().tolist())
 
-        # Iterate through each IG and load into a list & conver to an NumPy array
+        # Iterate through each IG and load into a list & convert to an NumPy array
         lst = []
         for i in industry_lst:
             df_industry = df.loc[(df['Name'] == i)]
@@ -349,19 +350,19 @@ def summary(df):
             file_name='IG_Latest_Signals.csv',
             mime='text/csv')
 
-        return df_final
+        #return df_final
 
 
-def daily_signal_changes(df):
-    """
-    Look max date in dataframe which is filter on signals only, then compare this when them IG previous signal.
-    """
-    st.header('IG Daily Changes')
-    if st.checkbox('IG Signal Changes'):
-        df['Date'] = pd.to_datetime(df['Date']).dt.date
-        max_date = df['Date'].max()
-        df_daily = df.loc[(df['Date'] == max_date)]
-        st.write(df_daily)
+#def daily_signal_changes(df):
+
+#   Look max date in dataframe which is filter on signals only, then compare this when them IG previous signal.
+
+#    st.header('IG Daily Changes')
+#    if st.checkbox('IG Signal Changes'):
+#        df['Date'] = pd.to_datetime(df['Date']).dt.date
+#        max_date = df['Date'].max()
+#        df_daily = df.loc[(df['Date'] == max_date)]
+#        st.write(df_daily)
 
 
 def convert_df(df):
