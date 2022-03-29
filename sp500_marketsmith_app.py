@@ -337,9 +337,16 @@ def summary(df):
         sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=['ENERGY','SOFTWARE','MEDICAL'
                                                                                       ,'TELECOM','BANKS','CHIPS'
                                                                                       ,'RETAIL','CONSUMER'])
-        df_final = df_final.loc[df_final['Sector'].isin(sector_options)]
 
-        st.write(df_final)
+        max_date = df['Date'].max()
+        df_latest = df.loc[df['Sector'].isin(sector_options) & (df['Date'] == max_date)]
+
+        df_final = df_final.loc[df_final['Sector'].isin(sector_options)]
+        df2 = pd.merge(df_final, df_latest, on=['Symbol','Name','Sector'], how='left')
+        df2.rename(columns = {'Date_x':'Date','Ind Group Rank_x':'Ind Group Rank','Ind Mkt Val (bil)_x':'Ind Mkt Val (bil)',
+                              'Date_y':'Latest Date','Ind Group Rank_y':'Latest Ind Group Rank', 'Ind Mkt Val (bil)_y':'Latest Ind Mkt Val (bil)'},
+                              inplace=True)
+        st.write(df2)
 
         # Call download function
         csv = convert_df(df_final)
