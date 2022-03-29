@@ -339,6 +339,7 @@ def summary(df):
                                                                                       ,'TELECOM','BANKS','CHIPS'
                                                                                       ,'RETAIL','CONSUMER'])
         df_final = df_final.loc[df_final['Sector'].isin(sector_options)]
+
         st.write(df_final)
 
         # Call download function
@@ -362,15 +363,6 @@ def daily_signal_changes(df):
         df_daily = df.loc[(df['Date'] == max_date)]
         st.write(df_daily)
 
-
-def filedownload(df, sector_ig):
-    """
-    Download buy and sell data
-    """
-    csv = df.to_csv(index=True)
-    b64 = base64.b64encode(csv.encode()).decode()  # strings <-> bytes conversions
-    href = f'<a href="data:file/csv;base64,{b64}" download="Buy Sell Triggers {sector_ig}.csv">Download to CSV File</a>'
-    return href
 
 def convert_df(df):
      # IMPORTANT: Cache the conversion to prevent computation on every rerun
