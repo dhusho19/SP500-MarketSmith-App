@@ -92,7 +92,9 @@ def app():
         #summary(df)
         plotting(df_sector_rank,df_selected_industry,selected_sector,selected_industry)
         st.markdown("""---""")
-        summary(df)
+        df_daily_changes = summary(df)
+        st.markdown("""---""")
+        daily_signal_changes(df_daily_changes)
     else:
         st.subheader("About")
         st.info("Built with Streamlit")
@@ -200,8 +202,14 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
             # sort df desc order
             sorted_sector_df = df_sector_rank.sort_index(ascending=False)
             sorted_sector_df.reset_index(inplace=True)
+
             # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
-            st.markdown(filedownload(sorted_sector_df.loc[:,['Date','Sector','Sector Rank',short_term_col,long_term_col,'Buy Sell ST']].loc[(sorted_sector_df['position_st'].isin([-1,1]))],selected_sector), unsafe_allow_html=True)
+            csv = convert_df(sorted_sector_df.loc[:,['Date','Sector','Sector Rank',short_term_col,long_term_col,'Buy Sell ST']].loc[(sorted_sector_df['position_st'].isin([-1,1]))])
+            st.download_button(label="Download data as CSV",
+                               data=csv,
+                               file_name='Sector_Latest_Signals.csv',
+                               mime='text/csv')
+
             # write df to streamlit app
             st.write(sorted_sector_df.loc[:,['Date','Sector','Sector Rank','Buy Sell ST']].loc[(sorted_sector_df['position_st'].isin([-1,1]))].head(3))
             #st.write(sorted_sector_df.loc[:,['Date','Sector','Sector Rank','buy_sell']].loc[(sorted_sector_df['position_lt'].isin([-1,1]))].head(3))
@@ -269,7 +277,11 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
             sorted_industry_df[long_term_col] = sorted_industry_df[long_term_col].astype('float32').round(2).astype('int')
 
             # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
-            st.markdown(filedownload(sorted_industry_df.loc[:,['Date','Symbol','Sector','Name','Ind Group Rank',short_term_col,mid_term_col,long_term_col,'Buy Sell ST']].loc[(sorted_industry_df['position_st'].isin([-1,1]))],selected_industry), unsafe_allow_html=True)
+            csv = convert_df(sorted_industry_df.loc[:,['Date','Symbol','Sector','Name','Ind Group Rank',short_term_col,mid_term_col,long_term_col,'Buy Sell ST']].loc[(sorted_industry_df['position_st'].isin([-1,1]))])
+            st.download_button(label="Download data as CSV",
+                               data=csv,
+                               file_name='IG_Latest_Signals.csv',
+                               mime='text/csv')
             # write df to streamlit app
             st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank',short_term_col,mid_term_col,long_term_col,'position_st','position_lt','Buy Sell ST','Buy Sell LT']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
 
@@ -307,7 +319,7 @@ def summary(df):
         df_final.sort_values(by=['Date'], ascending=True, inplace=True)
 
         # Pull back the latest two signals per IG
-        df_final = df_final.groupby('Name').tail(2).reset_index(drop=True)
+        df_final = df_final.groupby('Name').tail(1).reset_index(drop=True)
         df_final.drop(['alert_st','alert_lt','position_st','position_lt'], axis=1, inplace=True)
 
         # Rounding formatting
@@ -317,11 +329,16 @@ def summary(df):
 
         # Sort DataFrame and reshape it to merge each IG onto the one row
         df_final.sort_values(by=['Name','Date'], ascending=True, inplace=True)
-        df_final = pd.DataFrame(df_final.values.reshape(-1, df_final.shape[1] * 2),
-                           columns=['Date_2','Symbol_2','Name_2','Sector_2','Ind Group Rank_2','Ind Mkt Val (bil)_2','short_term_col_2','mid_term_col_2','long_term_col_2','Buy Sell ST_2','Buy Sell LT_2','Date_1','Symbol_1','Name_1','Sector_1','Ind Group Rank_1','Ind Mkt Val (bil)_1',short_term_col,mid_term_col,long_term_col,'Buy Sell ST_1','Buy Sell LT_1'])
+        # df_final = pd.DataFrame(df_final.values.reshape(-1, df_final.shape[1] * 2),
+        #                   columns=['Date_2','Symbol_2','Name_2','Sector_2','Ind Group Rank_2','Ind Mkt Val (bil)_2','short_term_col_2','mid_term_col_2','long_term_col_2','Buy Sell ST_2','Buy Sell LT_2','Date_1','Symbol_1','Name_1','Sector_1','Ind Group Rank_1','Ind Mkt Val (bil)_1',short_term_col,mid_term_col,long_term_col,'Buy Sell ST_1','Buy Sell LT_1'])
 
         # Re order the column structure
-        df_final = df_final.reindex(columns=['Date_1','Symbol_1','Name_1','Sector_1','Ind Group Rank_1','Ind Mkt Val (bil)_1',short_term_col,mid_term_col,long_term_col,'Buy Sell ST_1','Buy Sell LT_1','Date_2','Symbol_2','Name_2','Sector_2','Ind Group Rank_2','Ind Mkt Val (bil)_2','short_term_col_2','mid_term_col_2','long_term_col_2','Buy Sell ST_2','Buy Sell LT_2'])
+        # df_final = df_final.reindex(columns=['Date_1','Symbol_1','Name_1','Sector_1','Ind Group Rank_1','Ind Mkt Val (bil)_1',short_term_col,mid_term_col,long_term_col,'Buy Sell ST_1','Buy Sell LT_1','Date_2','Symbol_2','Name_2','Sector_2','Ind Group Rank_2','Ind Mkt Val (bil)_2','short_term_col_2','mid_term_col_2','long_term_col_2','Buy Sell ST_2','Buy Sell LT_2'])
+        unique_sectors = sorted(df_final['Sector'].unique().tolist())
+        sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=['ENERGY','SOFTWARE','MEDICAL'
+                                                                                      ,'TELECOM','BANKS','CHIPS'
+                                                                                      ,'RETAIL','CONSUMER'])
+        df_final = df_final.loc[df_final['Sector'].isin(sector_options)]
         st.write(df_final)
 
         # Call download function
@@ -329,11 +346,27 @@ def summary(df):
         st.download_button(label="Download data as CSV",
             data=csv,
             file_name='IG_Latest_Signals.csv',
-            mime='text/csv',
-        )
+            mime='text/csv')
 
-# download buy and sell data
+        return df_final
+
+
+def daily_signal_changes(df):
+    """
+    Look max date in dataframe which is filter on signals only, then compare this when them IG previous signal.
+    """
+    st.header('IG Daily Changes')
+    if st.checkbox('IG Signal Changes'):
+        df['Date'] = pd.to_datetime(df['Date']).dt.date
+        max_date = df['Date'].max()
+        df_daily = df.loc[(df['Date'] == max_date)]
+        st.write(df_daily)
+
+
 def filedownload(df, sector_ig):
+    """
+    Download buy and sell data
+    """
     csv = df.to_csv(index=True)
     b64 = base64.b64encode(csv.encode()).decode()  # strings <-> bytes conversions
     href = f'<a href="data:file/csv;base64,{b64}" download="Buy Sell Triggers {sector_ig}.csv">Download to CSV File</a>'
