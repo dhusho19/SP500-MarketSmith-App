@@ -89,13 +89,11 @@ def app():
         # function calls
         sector_crossover_strategy(df_sector_rank)
         industry_crossover_strategy(df_selected_industry)
-        #summary(df)
         plotting(df_sector_rank,df_selected_industry,selected_sector,selected_industry)
         st.markdown("""---""")
-        #df_daily_changes =
-        summary(df)
+        df_daily_changes = summary(df)
         st.markdown("""---""")
-        #daily_signal_changes(df_daily_changes)
+        daily_signal_changes(df_daily_changes)
     else:
         st.subheader("About")
         st.info("Built with Streamlit")
@@ -335,11 +333,11 @@ def summary(df):
 
         # Re order the column structure
         # df_final = df_final.reindex(columns=['Date_1','Symbol_1','Name_1','Sector_1','Ind Group Rank_1','Ind Mkt Val (bil)_1',short_term_col,mid_term_col,long_term_col,'Buy Sell ST_1','Buy Sell LT_1','Date_2','Symbol_2','Name_2','Sector_2','Ind Group Rank_2','Ind Mkt Val (bil)_2','short_term_col_2','mid_term_col_2','long_term_col_2','Buy Sell ST_2','Buy Sell LT_2'])
-        #unique_sectors = sorted(df_final['Sector'].unique().tolist())
-        #sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=['ENERGY','SOFTWARE','MEDICAL'
-        #                                                                              ,'TELECOM','BANKS','CHIPS'
-        #                                                                              ,'RETAIL','CONSUMER'])
-        #df_final = df_final.loc[df_final['Sector'].isin(sector_options)]
+        unique_sectors = sorted(df_final['Sector'].unique().tolist())
+        sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=['ENERGY','SOFTWARE','MEDICAL'
+                                                                                      ,'TELECOM','BANKS','CHIPS'
+                                                                                      ,'RETAIL','CONSUMER'])
+        df_final = df_final.loc[df_final['Sector'].isin(sector_options)]
 
         st.write(df_final)
 
@@ -350,19 +348,19 @@ def summary(df):
             file_name='IG_Latest_Signals.csv',
             mime='text/csv')
 
-        #return df_final
+        return df_final
 
 
-#def daily_signal_changes(df):
-
-#   Look max date in dataframe which is filter on signals only, then compare this when them IG previous signal.
-
-#    st.header('IG Daily Changes')
-#    if st.checkbox('IG Signal Changes'):
-#        df['Date'] = pd.to_datetime(df['Date']).dt.date
-#        max_date = df['Date'].max()
-#        df_daily = df.loc[(df['Date'] == max_date)]
-#        st.write(df_daily)
+def daily_signal_changes(df):
+    """
+    Look max date in dataframe which is filter on signals only, then compare this when them IG previous signal.
+    """
+    st.header('IG Daily Changes')
+    if st.checkbox('IG Signal Changes'):
+        df['Date'] = pd.to_datetime(df['Date']).dt.date
+        max_date = df['Date'].max()
+        df_daily = df.loc[(df['Date'] == max_date)]
+        st.write(df_daily)
 
 
 def convert_df(df):
