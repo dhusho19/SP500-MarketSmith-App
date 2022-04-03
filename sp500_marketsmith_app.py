@@ -337,25 +337,28 @@ def summary(df):
         sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=['ENERGY','SOFTWARE','MEDICAL'
                                                                                       ,'TELECOM','BANKS','CHIPS'
                                                                                       ,'RETAIL','CONSUMER'])
-
+        # Find the latest Ind Group Rank / Mkt Val and pull it  through to the summary
         max_date = df['Date'].max()
         df_latest = df.loc[df['Sector'].isin(sector_options) & (df['Date'] == max_date)]
 
         df_final = df_final.loc[df_final['Sector'].isin(sector_options)]
-        df2 = pd.merge(df_final, df_latest, on=['Symbol','Name','Sector'], how='left')
-        df2.rename(columns = {'Date_x':'Date','Ind Group Rank_x':'Ind Group Rank','Ind Mkt Val (bil)_x':'Ind Mkt Val (bil)',
-                              'Date_y':'Latest Date','Ind Group Rank_y':'Latest Ind Group Rank', 'Ind Mkt Val (bil)_y':'Latest Ind Mkt Val (bil)'},
-                              inplace=True)
-        st.write(df2)
+        df_final2 = pd.merge(df_final, df_latest, on=['Symbol','Name','Sector'], how='left')
+        # Rename the columns were two instances occur, validation the data is correct pulling through date
+        df_final2.rename(columns = {'Date_x':'Date', 'Date_y':'Latest Date','Ind Group Rank_y':'Ind Group Rank', 'Ind Mkt Val (bil)_y':'Ind Mkt Val (bil)'},inplace=True)
+        # Drop the latest date column & dropped the instances of IG Rnk / Mkt Val when the signal occurred.
+        df_final2.drop(['Ind Group Rank_x','Ind Mkt Val (bil)_x', 'Latest Date'], axis=1, inplace=True)
+        # Re-order the dataframe
+        df_final2 = df_final2.reindex(columns=['Date','Symbol','Name','Sector','Ind Group Rank','Ind Mkt Val (bil)',short_term_col,mid_term_col,long_term_col,'Buy Sell ST','Buy Sell LT'])
+        st.write(df_final2)
 
         # Call download function
-        csv = convert_df(df_final)
+        csv = convert_df(df_final2)
         st.download_button(label="Download data as CSV",
             data=csv,
             file_name='IG_Latest_Signals.csv',
             mime='text/csv')
 
-        return df_final
+        return df_final2
 
 
 def daily_signal_changes(df):
