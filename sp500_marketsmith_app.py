@@ -334,9 +334,13 @@ def summary(df):
         # Re order the column structure
         # df_final = df_final.reindex(columns=['Date_1','Symbol_1','Name_1','Sector_1','Ind Group Rank_1','Ind Mkt Val (bil)_1',short_term_col,mid_term_col,long_term_col,'Buy Sell ST_1','Buy Sell LT_1','Date_2','Symbol_2','Name_2','Sector_2','Ind Group Rank_2','Ind Mkt Val (bil)_2','short_term_col_2','mid_term_col_2','long_term_col_2','Buy Sell ST_2','Buy Sell LT_2'])
         unique_sectors = sorted(df_final['Sector'].unique().tolist())
-        sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=['ENERGY','SOFTWARE','MEDICAL'
-                                                                                      ,'TELECOM','BANKS','CHIPS'
-                                                                                      ,'RETAIL','CONSUMER'])
+        sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=['AEROSPACE','AGRICULTRE','ALCOHL/TOB','AUTO'
+                                                                                      ,'BANKS','CHIPS','CONSUMER'
+                                                                                      ,'ENERGY','FOOD/BEV'
+                                                                                      ,'INSURANCE','INTERNET','SOFTWARE'
+                                                                                      ,'MEDICAL','METALS','MINING','MISC'
+                                                                                      ,'TELECOM','TRANSPRT'
+                                                                                      ,'RETAIL','REAL EST','UTILITY'])
         # Find the latest Ind Group Rank / Mkt Val and pull it  through to the summary
         max_date = df['Date'].max()
         df_latest = df.loc[df['Sector'].isin(sector_options) & (df['Date'] == max_date)]
