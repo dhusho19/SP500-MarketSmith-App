@@ -13,7 +13,7 @@ mv_options = ['EMA','SMA']
 sma_ema = st.sidebar.radio('',mv_options)
 short_term = st.sidebar.slider('ST', min_value=1,
                                         max_value=30,
-                                        value=16)
+                                        value=15)
 
 mid_term = st.sidebar.slider('IT', min_value=0,
                                         max_value=50,
@@ -21,7 +21,7 @@ mid_term = st.sidebar.slider('IT', min_value=0,
 
 long_term = st.sidebar.slider('LT',  min_value=21,
                                         max_value=200,
-                                        value=160)
+                                        value=144)
 
 # column names for long and short moving average columns
 short_term_col = sma_ema + '_' + str(short_term)
