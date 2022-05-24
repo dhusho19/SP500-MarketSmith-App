@@ -211,7 +211,6 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
 
             # write df to streamlit app
             st.write(sorted_sector_df.loc[:,['Date','Sector','Sector Rank','Buy Sell ST']].loc[(sorted_sector_df['position_st'].isin([-1,1]))].head(3))
-            #st.write(sorted_sector_df.loc[:,['Date','Sector','Sector Rank','buy_sell']].loc[(sorted_sector_df['position_lt'].isin([-1,1]))].head(3))
 
         return st.plotly_chart(fig)
 
@@ -328,19 +327,16 @@ def summary(df):
 
         # Sort DataFrame and reshape it to merge each IG onto the one row
         df_final.sort_values(by=['Name','Date'], ascending=True, inplace=True)
-        # df_final = pd.DataFrame(df_final.values.reshape(-1, df_final.shape[1] * 2),
-        #                   columns=['Date_2','Symbol_2','Name_2','Sector_2','Ind Group Rank_2','Ind Mkt Val (bil)_2','short_term_col_2','mid_term_col_2','long_term_col_2','Buy Sell ST_2','Buy Sell LT_2','Date_1','Symbol_1','Name_1','Sector_1','Ind Group Rank_1','Ind Mkt Val (bil)_1',short_term_col,mid_term_col,long_term_col,'Buy Sell ST_1','Buy Sell LT_1'])
 
         # Re order the column structure
-        # df_final = df_final.reindex(columns=['Date_1','Symbol_1','Name_1','Sector_1','Ind Group Rank_1','Ind Mkt Val (bil)_1',short_term_col,mid_term_col,long_term_col,'Buy Sell ST_1','Buy Sell LT_1','Date_2','Symbol_2','Name_2','Sector_2','Ind Group Rank_2','Ind Mkt Val (bil)_2','short_term_col_2','mid_term_col_2','long_term_col_2','Buy Sell ST_2','Buy Sell LT_2'])
         unique_sectors = sorted(df_final['Sector'].unique().tolist())
-        sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=['AEROSPACE','AGRICULTRE','ALCOHL/TOB','AUTO'
-                                                                                      ,'BANKS','CHIPS','CONSUMER'
-                                                                                      ,'ENERGY','FOOD/BEV'
-                                                                                      ,'INSURANCE','INTERNET','SOFTWARE'
-                                                                                      ,'MEDICAL','METALS','MINING','MISC'
-                                                                                      ,'TELECOM','TRANSPRT'
-                                                                                      ,'RETAIL','REAL EST','UTILITY'])
+        sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=unique_sectors) #['AEROSPACE','AGRICULTRE','ALCOHL/TOB','AUTO'
+                                                                                      #,'BANKS','CHIPS','CONSUMER'
+                                                                                      #,'ENERGY','FOOD/BEV'
+                                                                                      #,'INSURANCE','INTERNET','SOFTWARE'
+                                                                                      #,'MEDICAL','METALS','MINING','MISC'
+                                                                                      #,'TELECOM','TRANSPRT'
+                                                                                      #,'RETAIL','REAL EST','UTILITY'])
         # Find the latest Ind Group Rank / Mkt Val and pull it  through to the summary
         max_date = df['Date'].max()
         df_latest = df.loc[df['Sector'].isin(sector_options) & (df['Date'] == max_date)]
