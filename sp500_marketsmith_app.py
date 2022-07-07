@@ -330,13 +330,8 @@ def summary(df):
 
         # Re order the column structure
         unique_sectors = sorted(df_final['Sector'].unique().tolist())
-        sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=unique_sectors) #['AEROSPACE','AGRICULTRE','ALCOHL/TOB','AUTO'
-                                                                                      #,'BANKS','CHIPS','CONSUMER'
-                                                                                      #,'ENERGY','FOOD/BEV'
-                                                                                      #,'INSURANCE','INTERNET','SOFTWARE'
-                                                                                      #,'MEDICAL','METALS','MINING','MISC'
-                                                                                      #,'TELECOM','TRANSPRT'
-                                                                                      #,'RETAIL','REAL EST','UTILITY'])
+        sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=unique_sectors) 
+        
         # Find the latest Ind Group Rank / Mkt Val and pull it  through to the summary
         max_date = df['Date'].max()
         df_latest = df.loc[df['Sector'].isin(sector_options) & (df['Date'] == max_date)]
