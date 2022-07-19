@@ -87,9 +87,8 @@ def app():
         df_sector_rank = df_selected_sector.groupby([df_selected_sector.index,'Sector'])['Sector Rank'].sum().reset_index()
         df_sector_rank_avg = df_selected_sector.groupby([df_selected_sector.index,'Sector'])['Sector Rank Avg'].mean().reset_index()
         # df formatting & merge
-        df_sector_rank.set_index('Date',inplace=True)
         df_sector_final = pd.merge(df_sector_rank, df_sector_rank_avg, how='left', on=['Date', 'Sector'])
-
+        df_sector_final.set_index('Date',inplace=True)
         st.markdown("""---""")
         # function calls
         sector_crossover_strategy(df_sector_final)
@@ -324,18 +323,18 @@ def summary_sector(df):
         df_st = df1_sector.loc[df1_sector['position_st'].isin([-1,1])]
         df_lt = df1_sector.loc[df1_sector['position_lt'].isin([-1,1])]
         frames = [df_st, df_lt]
+
         df_sector_final = pd.concat(frames)
         df_sector_final.sort_values(by=['Date'], ascending=True, inplace=True)
-        #st.write(df_sector_final)
 
-        # Pull back the latest signal per Sector
-        df_sector_final = df_sector_final.groupby('Sector').tail(1).reset_index(drop=True)
-        df_sector_final.drop(['total_mkt_val','weight','Sector Rank','alert_st','alert_lt','position_st','position_lt'], axis=1, inplace=True)
+        # Pull back the latest signal per Sector /  Commented to the below two lines out until validation has happened.
+        #df_sector_final = df_sector_final.groupby('Sector').tail(1).reset_index(drop=True)
+        #df_sector_final.drop(['total_mkt_val','weight','Sector Rank','alert_st','alert_lt','position_st','position_lt'], axis=1, inplace=True)
 
-        # Rounding formatting
-        df_sector_final[short_term_col] = df_sector_final[short_term_col].astype('float32').round(2).astype('int')
-        df_sector_final[mid_term_col] = df_sector_final[mid_term_col].astype('float32').round(2).astype('int')
-        df_sector_final[long_term_col] = df_sector_final[long_term_col].astype('float32').round(2).astype('int')
+        # Rounding formatting /  Commented the rounding out to show the values in EMA/SMA when they are > < one another. Uncomment after validation.
+        #df_sector_final[short_term_col] = df_sector_final[short_term_col].astype('float32').round(2).astype('int')
+        #df_sector_final[mid_term_col] = df_sector_final[mid_term_col].astype('float32').round(2).astype('int')
+        #df_sector_final[long_term_col] = df_sector_final[long_term_col].astype('float32').round(2).astype('int')
         df_sector_final['Sector Rank Avg'] = df_sector_final[long_term_col].astype('float32').round(2).astype('int')
 
         # Sort DataFrame and reshape it to merge each IG onto the one row
@@ -351,11 +350,13 @@ def summary_sector(df):
         df_sector_final = df_sector_final.loc[df_sector_final['Sector'].isin(sector_options)]
         df_sector_final2 = pd.merge(df_sector_final, df_latest, on=['Symbol','Name','Sector'], how='left')
         # Rename the columns were two instances occur, validation the data is correct pulling through date
-        df_sector_final2.rename(columns = {'Date_x':'Date', 'Date_y':'Latest Date','Ind Group Rank_y':'Ind Group Rank', 'Ind Mkt Val (bil)_y':'Ind Mkt Val (bil)'},inplace=True)
+        df_sector_final2.rename(columns = {'Date_x':'Date','Date_y':'Latest Date','Ind Group Rank_x':'Ind Group Rank','Ind Group Rank_y':'Latest Ind Group Rank','Ind Mkt Val (bil)_x':'Ind Mkt Val (bil)','Ind Mkt Val (bil)_y':'Latest Ind Mkt Val (bil)'},inplace=True)
+
         # Drop the latest date column & dropped the instances of IG Rnk / Mkt Val when the signal occurred.
-        df_sector_final2.drop(['Ind Group Rank_x','Ind Mkt Val (bil)_x', 'Latest Date'], axis=1, inplace=True)
+        #df_sector_final2.drop(['Ind Group Rank_x','Ind Mkt Val (bil)_x', 'Latest Date'], axis=1, inplace=True)
+
         # Re-order the dataframe
-        df_sector_final2 = df_sector_final2.reindex(columns=['Date','Symbol','Name','Sector','Sector Rank Avg','Ind Mkt Val (bil)',short_term_col,mid_term_col,long_term_col,'Buy Sell ST','Buy Sell LT'])
+        df_sector_final2 = df_sector_final2.reindex(columns=['Date','Symbol','Name','Sector','Ind Group Rank','Latest Ind Group Rank','Ind Mkt Val (bil)','Latest Ind Mkt Val (bil)','total_mkt_val','weight','Sector Rank','Sector Rank Avg',short_term_col,mid_term_col,long_term_col,'Buy Sell ST','Buy Sell LT'])
         st.write(df_sector_final2)
 
         # Call download function
@@ -394,7 +395,7 @@ def summary(df):
         # create buy and sell column, to easily identify the triggers
         df1['Buy Sell ST'] = np.where(df1['alert_st'] == 0,'BUY','SELL')
         df1['Buy Sell LT'] = np.where(df1['alert_lt'] == 0,'BUY','SELL')
-
+        st.write(df1)
         # Filter Dataframes to only look at rows which are signals
         df_st = df1.loc[df1['position_st'].isin([-1,1])]
         df_lt = df1.loc[df1['position_lt'].isin([-1,1])]
