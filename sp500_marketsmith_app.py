@@ -395,7 +395,7 @@ def summary(df):
         # create buy and sell column, to easily identify the triggers
         df1['Buy Sell ST'] = np.where(df1['alert_st'] == 0,'BUY','SELL')
         df1['Buy Sell LT'] = np.where(df1['alert_lt'] == 0,'BUY','SELL')
-        st.write(df1)
+
         # Filter Dataframes to only look at rows which are signals
         df_st = df1.loc[df1['position_st'].isin([-1,1])]
         df_lt = df1.loc[df1['position_lt'].isin([-1,1])]
