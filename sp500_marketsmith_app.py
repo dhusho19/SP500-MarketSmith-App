@@ -86,6 +86,7 @@ def app():
         # the sum of the sector rank by date by sector
         df_sector_rank = df_selected_sector.groupby([df_selected_sector.index,'Sector'])['Sector Rank'].sum().reset_index()
         df_sector_rank_avg = df_selected_sector.groupby([df_selected_sector.index,'Sector'])['Sector Rank Avg'].mean().reset_index()
+
         # df formatting & merge
         df_sector_final = pd.merge(df_sector_rank, df_sector_rank_avg, how='left', on=['Date', 'Sector'])
         df_sector_final.set_index('Date',inplace=True)
@@ -160,7 +161,7 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
 
         fig = px.line(df_sector_rank, x=df_sector_rank.index, y=['Sector Rank Avg',df_sector_rank[short_term_col],df_sector_rank[mid_term_col],df_sector_rank[long_term_col]],
                         hover_name='Sector', template = 'plotly_dark',
-                        color_discrete_map={'Sector Rank Avg':'white', short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
+                        color_discrete_map={'Sector Rank Avg':'light blue', short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
                          )
 
         fig.add_scatter(x=df_sector_rank.loc[df_sector_rank['position_st'] == -1].index,
@@ -226,7 +227,7 @@ def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_indus
 
         fig = px.line(df_selected_industry, x=df_selected_industry.index, y=['Ind Group Rank',df_selected_industry[short_term_col],df_selected_industry[mid_term_col],df_selected_industry[long_term_col]],
                         hover_name='Name',template = 'plotly_dark',
-                        color_discrete_map={'Ind Group Rank':'white',short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
+                        color_discrete_map={'Ind Group Rank':'light blue',short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
                         )
 
         fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_st'] == -1].index,
@@ -305,9 +306,9 @@ def summary_sector(df):
         lst = []
         for i in sector_lst:
             df_sector = df.loc[(df['Sector'] == i)]
-            sector_ranking(df_sector)
-            sector_crossover_strategy(df_sector)
-            lst.append(df_sector)
+            df_sector_ranking = sector_ranking(df_sector)
+            sector_crossover_strategy(df_sector_ranking)
+            lst.append(df_sector_ranking)
 
         # create an empty list to store all dataframes, then concatenate them at the end of the iteration
         dfs = []
@@ -315,27 +316,31 @@ def summary_sector(df):
             dfs.append(x)
         df1_sector = pd.concat(dfs, ignore_index=True)
 
-        # create buy and sell column, to easily identify the triggers
+         # create buy and sell column, to easily identify the triggers
         df1_sector['Buy Sell ST'] = np.where(df1_sector['alert_st'] == 0,'BUY','SELL')
         df1_sector['Buy Sell LT'] = np.where(df1_sector['alert_lt'] == 0,'BUY','SELL')
+        df1_sector.sort_values(by=['Sector','Date'], ascending=True, inplace=True)
 
         # Filter Dataframes to only look at rows which are signals
-        df_st = df1_sector.loc[df1_sector['position_st'].isin([-1,1])]
-        df_lt = df1_sector.loc[df1_sector['position_lt'].isin([-1,1])]
-        frames = [df_st, df_lt]
+        df_sector_st = df1_sector.loc[df1_sector['position_st'].isin([-1,1])]
+        df_sector_lt = df1_sector.loc[df1_sector['position_lt'].isin([-1,1])]
 
-        df_sector_final = pd.concat(frames)
-        df_sector_final.sort_values(by=['Date'], ascending=True, inplace=True)
+        sector_frames = [df_sector_st, df_sector_lt]
+        df_sector_frames = pd.concat(sector_frames)
 
-        # Pull back the latest signal per Sector /  Commented to the below two lines out until validation has happened.
-        #df_sector_final = df_sector_final.groupby('Sector').tail(1).reset_index(drop=True)
-        #df_sector_final.drop(['total_mkt_val','weight','Sector Rank','alert_st','alert_lt','position_st','position_lt'], axis=1, inplace=True)
+        df_sector_frames.sort_values(by=['Sector','Date'], ascending=True, inplace=True)
 
-        # Rounding formatting /  Commented the rounding out to show the values in EMA/SMA when they are > < one another. Uncomment after validation.
-        #df_sector_final[short_term_col] = df_sector_final[short_term_col].astype('float32').round(2).astype('int')
-        #df_sector_final[mid_term_col] = df_sector_final[mid_term_col].astype('float32').round(2).astype('int')
-        #df_sector_final[long_term_col] = df_sector_final[long_term_col].astype('float32').round(2).astype('int')
-        df_sector_final['Sector Rank Avg'] = df_sector_final[long_term_col].astype('float32').round(2).astype('int')
+        # Pull back the latest two signals per IG
+        df_sector_final = df_sector_frames.groupby('Sector').tail(1).reset_index(drop=True)
+        df_sector_final.drop(['Sector Rank','alert_st','alert_lt','position_st','position_lt'], axis=1, inplace=True)
+
+        # Rounding formatting
+        df_sector_final[short_term_col] = df_sector_final[short_term_col].astype('float32').round(2).astype('int')
+        df_sector_final[mid_term_col] = df_sector_final[mid_term_col].astype('float32').round(2).astype('int')
+        df_sector_final[long_term_col] = df_sector_final[long_term_col].astype('float32').round(2).astype('int')
+
+        df_sector_final['Sector Rank Avg'] = df_sector_final['Sector Rank Avg'].apply(np.floor)
+        df_sector_final['Sector Rank Avg'] = df_sector_final['Sector Rank Avg'].astype('float32').round(2).astype('int')
 
         # Sort DataFrame and reshape it to merge each IG onto the one row
         df_sector_final.sort_values(by=['Sector','Date'], ascending=True, inplace=True)
@@ -343,34 +348,21 @@ def summary_sector(df):
         # Re order the column structure
         unique_sectors = sorted(df_sector_final['Sector'].unique().tolist())
         sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=unique_sectors, key="1")
-        # Find the latest Ind Group Rank / Mkt Val and pull it  through to the summary
-        max_date = df['Date'].max()
-        df_latest = df.loc[df['Sector'].isin(sector_options) & (df['Date'] == max_date)]
 
         df_sector_final = df_sector_final.loc[df_sector_final['Sector'].isin(sector_options)]
-        df_sector_final2 = pd.merge(df_sector_final, df_latest, on=['Symbol','Name','Sector'], how='left')
-        # Rename the columns were two instances occur, validation the data is correct pulling through date
-        df_sector_final2.rename(columns = {'Date_x':'Date','Date_y':'Latest Date','Ind Group Rank_x':'Ind Group Rank','Ind Group Rank_y':'Latest Ind Group Rank','Ind Mkt Val (bil)_x':'Ind Mkt Val (bil)','Ind Mkt Val (bil)_y':'Latest Ind Mkt Val (bil)'},inplace=True)
-
-        # Drop the latest date column & dropped the instances of IG Rnk / Mkt Val when the signal occurred.
-        #df_sector_final2.drop(['Ind Group Rank_x','Ind Mkt Val (bil)_x', 'Latest Date'], axis=1, inplace=True)
-
-        # Re-order the dataframe
-        df_sector_final2 = df_sector_final2.reindex(columns=['Date','Symbol','Name','Sector','Ind Group Rank','Latest Ind Group Rank','Ind Mkt Val (bil)','Latest Ind Mkt Val (bil)','total_mkt_val','weight','Sector Rank','Sector Rank Avg',short_term_col,mid_term_col,long_term_col,'Buy Sell ST','Buy Sell LT'])
-        st.write(df_sector_final2)
+        st.write(df_sector_final)
 
         # Call download function
-        csv = convert_df(df_sector_final2)
+        csv = convert_df(df_sector_final)
         st.download_button(label="Download data as CSV",
             data=csv,
             file_name='Sector_Latest_Signals.csv',
             mime='text/csv')
 
-        return df_sector_final2
+        return df_sector_final
 
 
 def summary(df):
-    #st.header('IG Summary')
     if st.checkbox('IG'):
         df.reset_index(inplace=True)
         # an index column appears if you select the sector's summary first, which affects the reshaping. Therefore, need to drop the column if it exists.
@@ -479,7 +471,6 @@ def daily_signal_changes(df):
     """
     Look max date in dataframe which is filter on signals only, then compare this when them IG previous signal.
     """
-    #st.header('IG Daily Changes')
     if st.checkbox('IG Signal Changes'):
         df['Date'] = pd.to_datetime(df['Date']).dt.date
         max_date = df['Date'].max()
