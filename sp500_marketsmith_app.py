@@ -4,6 +4,7 @@ import base64
 import streamlit as st
 import plotly.express as px
 import datetime
+pd.options.display.float_format = '{:,.2f}'.format
 
 st.title('MS Sector & Industry Group Rotation')
 
@@ -339,9 +340,6 @@ def summary_sector(df):
         df_sector_final[mid_term_col] = df_sector_final[mid_term_col].astype('float32').round(2).astype('int')
         df_sector_final[long_term_col] = df_sector_final[long_term_col].astype('float32').round(2).astype('int')
 
-        df_sector_final['Sector Rank Avg'] = df_sector_final['Sector Rank Avg'].apply(np.floor)
-        df_sector_final['Sector Rank Avg'] = df_sector_final['Sector Rank Avg'].astype('float32').round(2).astype('int')
-
         # Sort DataFrame and reshape it to merge each IG onto the one row
         df_sector_final.sort_values(by=['Sector','Date'], ascending=True, inplace=True)
 
@@ -349,7 +347,23 @@ def summary_sector(df):
         unique_sectors = sorted(df_sector_final['Sector'].unique().tolist())
         sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=unique_sectors, key="1")
 
+        # Find the latest Sector Rank and pull it  through to the summary
+        max_date = df1_sector['Date'].max()
+        df_sector_latest = df1_sector.loc[df1_sector['Sector'].isin(sector_options) & (df1_sector['Date'] == max_date)]
+
         df_sector_final = df_sector_final.loc[df_sector_final['Sector'].isin(sector_options)]
+        df_sector_final = pd.merge(df_sector_final, df_sector_latest, on=['Sector'], how='left')
+
+        df_sector_final = df_sector_final.loc[df_sector_final['Sector'].isin(sector_options)]
+
+        # Rename the columns were two instances occur, validation the data is correct pulling through date
+        df_sector_final.rename(columns = {'Date_x':'Date','Sector Rank Avg_x':'Sector Rank Avg Old', short_term_col+'_x':short_term_col, mid_term_col+'_x':mid_term_col,long_term_col+'_x':long_term_col,'Buy Sell ST_x':'Buy Sell ST','Buy Sell LT_x':'Buy Sell LT','Sector Rank Avg_y':'Sector Rank Avg'},inplace=True)
+
+        # Drop the latest date column & dropped the instances of Sector Rnk when the signal occurred.
+        df_sector_final.drop(['Sector Rank Avg Old','Date_y','Sector Rank', short_term_col+'_y', mid_term_col+'_y', long_term_col+'_y', 'alert_st', 'alert_lt', 'position_st', 'position_lt','Buy Sell ST_y', 'Buy Sell LT_y'], axis=1, inplace=True)
+
+        # Restructure columns in dataframe
+        df_sector_final = df_sector_final.reindex(columns=['Date','Sector','Sector Rank Avg',short_term_col,mid_term_col,long_term_col,'Buy Sell ST','Buy Sell LT'])
         st.write(df_sector_final)
 
         # Call download function
@@ -444,7 +458,7 @@ def sector_ranking(df):
     df['weight'] = df['Ind Mkt Val (bil)']/df['total_mkt_val']
     # use the newly created weight column to calculate sector rank
     df['Sector Rank'] = df['weight']*df['Ind Group Rank']
-    df['Sector Rank'] = df['Sector Rank'].astype('float32').round(2).astype('int')
+    #df['Sector Rank'] = df['Sector Rank'].astype('float32').round(2).astype('int')
     df['Sector Rank Avg'] = df.groupby(['Date','Sector'])['Sector Rank'].transform('mean')
     df_sector_rank = df.groupby(['Date','Sector'])['Sector Rank'].sum().reset_index()
     df_sector_rank_avg = df.groupby(['Date','Sector'])['Sector Rank Avg'].mean().reset_index()
