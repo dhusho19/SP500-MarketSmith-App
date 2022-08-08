@@ -343,9 +343,17 @@ def summary_sector(df):
         # Sort DataFrame and reshape it to merge each IG onto the one row
         df_sector_final.sort_values(by=['Sector','Date'], ascending=True, inplace=True)
 
-        # Re order the column structure
+        # Selection filter for sectors
         unique_sectors = sorted(df_sector_final['Sector'].unique().tolist())
         sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=unique_sectors, key="1")
+
+        # Short-Term signal filter
+        st_signal = ['BUY', 'SELL']
+        st_signal_options = st.multiselect('Short-Term Buy & Sell Signal',st_signal, default=st_signal, key="1")
+
+        # Long-Term signal filter
+        lt_signal = ['BUY', 'SELL']
+        lt_signal_options = st.multiselect('Long-Term Buy & Sell Signal',lt_signal, default=lt_signal, key="2")
 
         # Find the latest Sector Rank and pull it  through to the summary
         max_date = df1_sector['Date'].max()
@@ -353,8 +361,6 @@ def summary_sector(df):
 
         df_sector_final = df_sector_final.loc[df_sector_final['Sector'].isin(sector_options)]
         df_sector_final = pd.merge(df_sector_final, df_sector_latest, on=['Sector'], how='left')
-
-        df_sector_final = df_sector_final.loc[df_sector_final['Sector'].isin(sector_options)]
 
         # Rename the columns were two instances occur, validation the data is correct pulling through date
         df_sector_final.rename(columns = {'Date_x':'Date','Sector Rank Avg_x':'Sector Rank Avg Old', short_term_col+'_x':short_term_col, mid_term_col+'_x':mid_term_col,long_term_col+'_x':long_term_col,'Buy Sell ST_x':'Buy Sell ST','Buy Sell LT_x':'Buy Sell LT','Sector Rank Avg_y':'Sector Rank Avg'},inplace=True)
@@ -364,6 +370,9 @@ def summary_sector(df):
 
         # Restructure columns in dataframe
         df_sector_final = df_sector_final.reindex(columns=['Date','Sector','Sector Rank Avg',short_term_col,mid_term_col,long_term_col,'Buy Sell ST','Buy Sell LT'])
+
+        # Filter dataframe
+        df_sector_final = df_sector_final.loc[df_sector_final['Sector'].isin(sector_options) & df_sector_final['Buy Sell ST'].isin(st_signal_options) & df_sector_final['Buy Sell LT'].isin(lt_signal_options)]
         st.write(df_sector_final)
 
         # Call download function
@@ -421,15 +430,22 @@ def summary(df):
         # Sort DataFrame and reshape it to merge each IG onto the one row
         df_final.sort_values(by=['Name','Date'], ascending=True, inplace=True)
 
-        # Re order the column structure
+        # IG Filter
         unique_sectors = sorted(df_final['Sector'].unique().tolist())
         sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=unique_sectors,key="2")
+        # Short-Term signal filter
+        ig_st_signal = ['BUY', 'SELL']
+        ig_st_signal_options = st.multiselect('Short-Term Buy & Sell Signal',ig_st_signal, default=ig_st_signal, key="3")
+        # Long-Term signal filter
+        ig_lt_signal = ['BUY', 'SELL']
+        ig_lt_signal_options = st.multiselect('Long-Term Buy & Sell Signal',ig_lt_signal, default=ig_lt_signal, key="4")
 
         # Find the latest Ind Group Rank / Mkt Val and pull it  through to the summary
         max_date = df['Date'].max()
         df_latest = df.loc[df['Sector'].isin(sector_options) & (df['Date'] == max_date)]
 
-        df_final = df_final.loc[df_final['Sector'].isin(sector_options)]
+        # Filter dataframe
+        df_final = df_final.loc[df_final['Sector'].isin(sector_options) & df_final['Buy Sell ST'].isin(ig_st_signal_options) & df_final['Buy Sell LT'].isin(ig_lt_signal_options)]
         df_final2 = pd.merge(df_final, df_latest, on=['Symbol','Name','Sector'], how='left')
         # Rename the columns were two instances occur, validation the data is correct pulling through date
         df_final2.rename(columns = {'Date_x':'Date', 'Date_y':'Latest Date','Ind Group Rank_y':'Ind Group Rank', 'Ind Mkt Val (bil)_y':'Ind Mkt Val (bil)'},inplace=True)
