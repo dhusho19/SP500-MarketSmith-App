@@ -2,11 +2,25 @@ import pandas as pd
 import numpy as np
 import base64
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.express as px
 import datetime
 pd.options.display.float_format = '{:,.2f}'.format
 
 st.title('MS Sector & Industry Group Rotation')
+
+# Javascript pop out window component
+components.html('''
+<div>
+<a href="https://share.streamlit.io/dhusho19/sp500-marketsmith-app/main/sp500_marketsmith_app.py" onclick="basicPopup(this.href);return false">Open a popup window</a>
+</div>
+<script>
+// Popup window function
+function basicPopup(url) {
+popupWindow = window.open(url,'popUpWindow','height=500,width=500,left=100,top=100,resizable=yes,scrollbars=yes,toolbar=yes,menubar=no,location=no,directories=no, status=yes');
+	}
+></script>
+''')
 
 st.sidebar.header('Moving Averages')
 # Short and Long Term Moving Average filters
