@@ -12,7 +12,7 @@ st.title('MS Sector & Industry Group Rotation')
 # Javascript pop out window component
 components.html('''
 <div>
-<a href="https://share.streamlit.io/dhusho19/sp500-marketsmith-app/main/sp500_marketsmith_app.py" onclick="basicPopup(this.href);return false">Open a popup window</a>
+<a href="https://dhusho19-sp500-marketsmith-app-sp500-marketsmith-app-0y7kwe.streamlitapp.com/" onclick="basicPopup(this.href);return false">Open a popup window</a>
 </div>
 <script>
 // Popup window function
