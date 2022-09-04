@@ -14,15 +14,15 @@ mv_options = ['EMA','SMA']
 sma_ema = st.sidebar.radio('',mv_options)
 short_term = st.sidebar.slider('ST', min_value=1,
                                         max_value=30,
-                                        value=15)
+                                        value=5)
 
 mid_term = st.sidebar.slider('IT', min_value=0,
                                         max_value=50,
-                                        value=36)
+                                        value=13)
 
 long_term = st.sidebar.slider('LT',  min_value=21,
                                         max_value=200,
-                                        value=144)
+                                        value=50)
 
 # column names for long and short moving average columns
 short_term_col = sma_ema + '_' + str(short_term)
@@ -93,12 +93,14 @@ def app():
         df_sector_final.set_index('Date',inplace=True)
         st.markdown("""---""")
         # function calls
+        data_col, chart_col = st.columns(2)
         sector_crossover_strategy(df_sector_final)
         industry_crossover_strategy(df_selected_industry)
-        plotting(df_sector_final,df_selected_industry,selected_sector,selected_industry)
-        st.markdown("""---""")
-        df_sector_daily_changes = summary_sector(df)
-        df_daily_changes = summary(df)
+        with chart_col:
+            plotting(df_sector_final,df_selected_industry,selected_sector,selected_industry)
+        with data_col:
+            df_sector_daily_changes = summary_sector(df)
+            df_daily_changes = summary(df)
         st.markdown("""---""")
         daily_sector_signal_changes(df_sector_daily_changes)
         daily_signal_changes(df_daily_changes)
