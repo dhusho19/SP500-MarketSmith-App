@@ -628,11 +628,14 @@ with tab_signal:
 
                 fig_signals.update_layout(title='Market Performance',
                                         xaxis_title="Date",
-                                        yaxis_title="Short Term Signal Count",
+                                        yaxis_title="Signal Count",
                                         legend_title=''
                                         )
-                fig_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": ["ST Sell %","ST Buy %","LT Sell %","LT Buy %"]})
 
+                fig_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": "ST Sell %"})
+                fig_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": "ST Buy %"})
+                fig_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": "LT Sell %"})
+                fig_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": "LT Buy %"})
                 return st.plotly_chart(fig_signals)
 
 
