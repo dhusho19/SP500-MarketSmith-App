@@ -57,7 +57,6 @@ with tab_main:
 
             # list of all relevant Industries based on the Sector filter selection
             industry = df.loc[df['Sector'] == selected_sector, 'Name'].unique()
-
             # store users Industry selection
             selected_industry = st.sidebar.selectbox('', industry)
 
@@ -105,7 +104,34 @@ with tab_main:
                 plotting(df_sector_final,df_selected_industry,selected_sector,selected_industry)
             with data_col:
                 df_sector_daily_changes = summary_sector(df)
+                components.html("""<!DOCTYPE html>
+                                    <html>
+                                    <body>
+                                    <p>Test:</p>
+
+                                    <button id="myBtn">Test</button>
+
+                                    <p id="demo">
+
+                                    <script>
+                                    const element = document.getElementById("myBtn");
+                                    element.addEventListener("click", myFunction);
+
+                                    function myFunction() {
+                                    //document.getElementById("demo").innerHTML = "Hello World";
+                                    // Open a new window and append the chart to it
+                                    const newWindow = window.open('', '_blank', 'width=600,height=400');
+                                    newWindow.document.write("Hello, world!");
+                                    newWindow.document.body.appendChild(document.getElementsByClassName('stMarkdown')[0]);
+
+                                    }
+                                    </script>
+
+                                    </body>
+                                    </html>
+                                """)
                 df_daily_changes = summary(df)
+
             st.markdown("""---""")
             daily_sector_signal_changes(df_sector_daily_changes)
             daily_signal_changes(df_daily_changes)
@@ -141,7 +167,7 @@ with tab_main:
         if sma_ema == 'SMA':
             # Industry
             df[short_term_col] = df['Ind Group Rank'].rolling(window=short_term, min_periods=1).mean()
-            df[mid_term_col] = df['Ind Group Rank'].rolling(window=mid_term, min_periods=1).mean()
+            df[mid_term_col] = df['Ind Group Rank'].rolling(windomid_term, min_periods=1).mean()
             df[long_term_col] = df['Ind Group Rank'].rolling(window=long_term, min_periods=1).mean()
 
         elif sma_ema == 'EMA':
@@ -543,41 +569,66 @@ with tab_signal:
         if uploaded_file is not None:
             file_details = {"FileName":uploaded_file.name,"FileType":uploaded_file.type,"FileSize":uploaded_file.size,"Key":23}
             df = pd.read_csv(uploaded_file, parse_dates=['Date'])
-
             df['Date'] = df['Date'].dt.date
+            #df['Date'] = df['Date'].dt.date
             # date picker filters, find the minimum date in the dataset and use that as the start date
             min_date = df['Date'].min()
             st.sidebar.header("Date Range")
             start_date = st.sidebar.date_input('Begin',min_date,key=25)
             end_date = st.sidebar.date_input('End',key=26)
 
-            df_filtered = df.loc[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+            date_string = '2021-05-19'
+            date_1 = datetime.datetime.strptime(date_string, '%Y-%m-%d')
+            date_1 = date_1.date()
 
+            df=df.loc[df['Date']>=date_1]
+            df.drop(['position_st','position_lt'],axis=1,inplace=True)
+
+            st.sidebar.header('Sector & Industry Groups')
+            # load list of Sector values & create filter
+            sector = sorted(df['Sector'].unique().tolist())
+            selected_sector = st.sidebar.selectbox('', sector)
+
+            if 'IG_Signals' in file_details['FileName']:
+                # list of all relevant Industries based on the Sector filter selection
+                industry = df.loc[df['Sector'] == selected_sector, 'Name'].unique()
+                # store users Industry selection
+                selected_industry = st.sidebar.selectbox('', industry)
+                df_filtered = df.loc[(df['Sector'] == selected_sector) & (df['Name'] == selected_industry) & (df['Date'] >= start_date) & (df['Date'] <= end_date)]
+
+            df_filtered = df.loc[(df['Sector'] == selected_sector) & (df['Date'] >= start_date) & (df['Date'] <= end_date)]
+            #df_filtered = df_filtered.dropna(how='all',inplace=True)
             # Now we have the date from this column we can drop it and set it as the index
             if 'Unnamed: 0' in df.columns:
                 df.drop('Unnamed: 0', axis=1, inplace=True)
             else:
                 df.drop('id', axis=1, inplace=True)
-            df.set_index('Date', inplace=True)
-
+            #df.set_index('Date', inplace=True
+            #st.write(df_filtered)
+            #st.write(df_filtered.isnull().values.any())
             # enable toggle to view & unview the dataset
             if st.checkbox('Show File Details & DataFrame'):
                 st.write(file_details)
                 st.markdown('** Original Dataset:**')
                 st.write('>Data Dimension: ' + str(df.shape[0]) + ' rows and ' + str(df.shape[1]) + ' columns.')
                 st.write(df)
+
             col_data, col_chart = st.columns(2)
             with col_data:
                 # Short Term Sell Signals
                 df_st_sell = df_filtered.loc[df_filtered['Buy Sell ST']=='SELL']
                 df_st_sell_cnt = df_st_sell.groupby(['Date'])['Buy Sell ST'].count().reset_index()
                 df_st_sell_cnt.rename(columns = {'Buy Sell ST':'ST SELL'},inplace=True)
-
+                st.write(df_st_sell_cnt)
                 # Short Term Buy Signals
                 df_st_buy = df_filtered.loc[df_filtered['Buy Sell ST']=='BUY']
                 df_st_buy_cnt = df_st_buy.groupby(['Date'])['Buy Sell ST'].count().reset_index()
                 df_st_buy_cnt.rename(columns = {'Buy Sell ST':'ST BUY'},inplace=True)
 
+                df_st_buy = df_filtered.loc[df_filtered['Buy Sell ST']=='BUY']
+                df_st_buy_cnt = df_st_buy.groupby(['Date'])['Buy Sell ST'].count().reset_index()
+                df_st_buy_cnt.rename(columns = {'Buy Sell ST':'ST BUY'},inplace=True)
+                st.write(df_st_buy_cnt)
                 # Long Term Sell Signals
                 df_lt_sell = df_filtered.loc[df_filtered['Buy Sell LT']=='SELL']
                 df_lt_sell_cnt = df_lt_sell.groupby(['Date'])['Buy Sell LT'].count().reset_index()
@@ -592,6 +643,8 @@ with tab_signal:
                 df_st_cnt = pd.merge(df_st_sell_cnt, df_st_buy_cnt, on=['Date'], how='left')
                 df_lt_cnt = pd.merge(df_lt_sell_cnt, df_lt_buy_cnt, on=['Date'], how='left')
                 df_final_cnt = pd.merge(df_st_cnt, df_lt_cnt, on=['Date'], how='left')
+                st.write(df_st_cnt)
+
 
                 if 'IG_Signals' in file_details['FileName']:
                     df_final_cnt['ST Sell %'] = df_final_cnt['ST SELL'] / 197 * 100
@@ -605,15 +658,15 @@ with tab_signal:
                     df_final_cnt['LT Sell %'] = df_final_cnt['LT SELL'] / 33 * 100
                     df_final_cnt['LT Buy %'] = df_final_cnt['LT BUY'] / 33 * 100
 
-                df_final_cnt['ST Sell %'] = df_final_cnt['ST Sell %'].astype('float32').round(0).astype('float')
-                df_final_cnt['ST Buy %'] = df_final_cnt['ST Buy %'].astype('float32').round(0).astype('float')
-                df_final_cnt['ST Sell %'] = df_final_cnt['ST Sell %'].astype('float32').round(0).astype('int')
-                df_final_cnt['ST Buy %'] = df_final_cnt['ST Buy %'].astype('float32').round(0).astype('int')
+                #df_final_cnt['ST Sell %'] = df_final_cnt['ST Sell %'].astype('float32').round(0).astype('float')
+                #df_final_cnt['ST Buy %'] = df_final_cnt['ST Buy %'].astype('float32').round(0).astype('float')
+                #df_final_cnt['ST Sell %'] = df_final_cnt['ST Sell %'].astype('float32').round(0).astype('int')
+                #df_final_cnt['ST Buy %'] = df_final_cnt['ST Buy %'].astype('float32').round(0).astype('int')
 
-                df_final_cnt['LT Sell %'] = df_final_cnt['LT Sell %'].astype('float32').round(0).astype('float')
-                df_final_cnt['LT Buy %'] = df_final_cnt['LT Buy %'].astype('float32').round(0).astype('float')
-                df_final_cnt['LT Sell %'] = df_final_cnt['LT Sell %'].astype('float32').round(0).astype('int')
-                df_final_cnt['LT Buy %'] = df_final_cnt['LT Buy %'].astype('float32').round(0).astype('int')
+                #df_final_cnt['LT Sell %'] = df_final_cnt['LT Sell %'].astype('float32').round(0).astype('float')
+                #df_final_cnt['LT Buy %'] = df_final_cnt['LT Buy %'].astype('float32').round(0).astype('float')
+                #df_final_cnt['LT Sell %'] = df_final_cnt['LT Sell %'].astype('float32').round(0).astype('int')
+                #df_final_cnt['LT Buy %'] = df_final_cnt['LT Buy %'].astype('float32').round(0).astype('int')
 
                 df_final_cnt.set_index('Date', inplace=True)
                 st.write(df_final_cnt)
