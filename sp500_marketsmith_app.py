@@ -7,6 +7,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import plotly.express as px
 import datetime
+import requests as r
+
 
 tab_main, tab_signal = st.tabs(['📈 Main', '📈 Sector & IG Signals'])
 
@@ -104,32 +106,11 @@ with tab_main:
                 plotting(df_sector_final,df_selected_industry,selected_sector,selected_industry)
             with data_col:
                 df_sector_daily_changes = summary_sector(df)
-                components.html("""<!DOCTYPE html>
-                                    <html>
-                                    <body>
-                                    <p>Test:</p>
 
-                                    <button id="myBtn">Test</button>
+                # Pass custom HTML
+                p = open("new_window.html")
+                components.html(p.read())
 
-                                    <p id="demo">
-
-                                    <script>
-                                    const element = document.getElementById("myBtn");
-                                    element.addEventListener("click", myFunction);
-
-                                    function myFunction() {
-                                    //document.getElementById("demo").innerHTML = "Hello World";
-                                    // Open a new window and append the chart to it
-                                    const newWindow = window.open('', '_blank', 'width=600,height=400');
-                                    newWindow.document.write("Hello, world!");
-                                    newWindow.document.body.appendChild(document.getElementsByClassName('stMarkdown')[0]);
-
-                                    }
-                                    </script>
-
-                                    </body>
-                                    </html>
-                                """)
                 df_daily_changes = summary(df)
 
             st.markdown("""---""")
