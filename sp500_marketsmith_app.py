@@ -34,6 +34,7 @@ with tab_main:
     mid_term_col = sma_ema + '_' + str(mid_term)
     long_term_col = sma_ema + '_' + str(long_term)
 
+    tab_data = []
 
     def app():
 
@@ -97,15 +98,21 @@ with tab_main:
             df_sector_final = pd.merge(df_sector_rank, df_sector_rank_avg, how='left', on=['Date', 'Sector'])
             df_sector_final.set_index('Date',inplace=True)
             st.markdown("""---""")
+
             # function calls
             data_col, chart_col = st.columns(2)
             sector_crossover_strategy(df_sector_final)
             industry_crossover_strategy(df_selected_industry)
+
+            # Plotting for IG Ranking Graph
             with chart_col:
                 plotting(df_sector_final,df_selected_industry,selected_sector,selected_industry)
+
+            # Sector and IG Summary Pane
             with data_col:
                 df_sector_daily_changes = summary_sector(df)
                 df_daily_changes = summary(df)
+
             st.markdown("""---""")
             daily_sector_signal_changes(df_sector_daily_changes)
             daily_signal_changes(df_daily_changes)
@@ -299,7 +306,22 @@ with tab_main:
                 # write df to streamlit app
                 st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank','Buy Sell ST']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
 
-            return st.plotly_chart(fig)
+            # Create the tabs
+            # if(tab_data):
+            #     tabs = st.tabs([tab["title"] for tab in tab_data])
+            #     for i, tab in enumerate(tab_data):
+            #         with tabs[i]:
+            #             # tab["content"]
+            #             st.plotly_chart(fig)
+
+            tabs = st.tabs([selected_industry, selected_industry])
+            with tabs[0]:
+                st.plotly_chart(fig)
+
+            with tabs[1]:
+                st.plotly_chart(fig)
+
+            # return st.plotly_chart(fig)
 
 
     def summary_sector(df):
@@ -418,7 +440,7 @@ with tab_main:
             arr = np.asarray(ig_lst)
 
             # Load the array which is storing the data into a DataFrame
-            df1 = pd.DataFrame(arr.reshape(-1, 13), columns=['Date','Symbol','Name','Sector','Ind Group Rank','Ind Mkt Val (bil)',short_term_col,mid_term_col,long_term_col,'alert_st','alert_lt','position_st','position_lt'])
+            df1 = pd.DataFrame(arr.reshape(-1, 13), columns=['Date', 'Symbol','Name','Sector','Ind Group Rank','Ind Mkt Val (bil)',short_term_col,mid_term_col,long_term_col,'alert_st','alert_lt','position_st','position_lt'])
             df1.index = np.repeat(np.arange(arr.shape[0]), arr.shape[1]) + 1
             df1.index.name = 'id'
             # create buy and sell column, to easily identify the triggers
@@ -467,8 +489,31 @@ with tab_main:
             df_final2.drop(['Ind Group Rank_x','Ind Mkt Val (bil)_x', 'Latest Date'], axis=1, inplace=True)
             # Re-order the dataframe
             df_final2 = df_final2.reindex(columns=['Date','Symbol','Name','Sector','Ind Group Rank','Ind Mkt Val (bil)',short_term_col,mid_term_col,long_term_col,'Buy Sell ST','Buy Sell LT'])
-            st.write(df_final2)
+            # Display the filtered and cleaned DataFrame with a clickable Name column
 
+            # st.write(df_final2)
+
+            def action_callback():
+                st.write(f"You clicked")
+
+            button_type = "Show"
+            header_names = columns=['Date', 'Symbol', 'Name', 'Sector', 'Ind Group Rank', 'Ind Mkt Val (bil)', 'EMA_5', 'EMA_13', 'EMA_50', 'Buy Sell ST', 'Buy Sell LT']
+            with st.container():
+                header_columns = st.columns([3,2,3,6,2,2,2,2,2,2,2,2])
+                for header_name in header_names:
+                    header_columns[columns.index(header_name)+1].write(header_name)
+
+                columns = st.columns([3,2,3,6,2,2,2,2,2,2,2,2])  # create one extra column for the button
+                for i, row in df_final2.iterrows():
+                    if(i < 10):
+                        button_phold = columns[0].empty()  # create a placeholder in the first column for the button
+                        do_action = button_phold.button(button_type, key=f'action_{i}')
+                        for j, col_value in enumerate(row):
+                            columns[j+1].write(col_value)  # write column values in the respective column
+                        if do_action:
+                            # TODO: Store choices in st.session_state
+                            st.write(f"You clicked on {row['Name']}")
+                            # tab_data.append({'title': row['Name']})
 
             # Call download function
             csv = convert_df(df1)
