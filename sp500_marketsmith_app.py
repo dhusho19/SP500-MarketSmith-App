@@ -8,7 +8,6 @@ import streamlit.components.v1 as components
 import plotly.express as px
 import datetime
 
-st.set_page_config(layout="wide")
 tab_main, tab_signal = st.tabs(['📈 Main', '📈 Sector & IG Signals'])
 
 with tab_main:
@@ -38,7 +37,6 @@ with tab_main:
     mid_term_col = sma_ema + '_' + str(mid_term)
     long_term_col = sma_ema + '_' + str(long_term)
 
-    tab_data = []
 
     def app():
 
@@ -79,9 +77,6 @@ with tab_main:
                 st.write('>Data Dimension: ' + str(df.shape[0]) + ' rows and ' + str(df.shape[1]) + ' columns.')
                 st.write(df)
 
-            # Writing df to state to have access to matching fig data
-            st.session_state['df'] = df
-
             # filtered sector & industry data
             df_selected_sector = df.loc[(df['Sector'] == selected_sector) & (df.index >= start_date) & (df.index <= end_date)]
             df_selected_industry = df.loc[(df['Name'] == selected_industry) & (df.index >= start_date) & (df.index <= end_date)]
@@ -105,21 +100,15 @@ with tab_main:
             df_sector_final = pd.merge(df_sector_rank, df_sector_rank_avg, how='left', on=['Date', 'Sector'])
             df_sector_final.set_index('Date',inplace=True)
             st.markdown("""---""")
-
             # function calls
-            data_col, chart_col = st.columns([4, 2])
+            data_col, chart_col = st.columns(2)
             sector_crossover_strategy(df_sector_final)
             industry_crossover_strategy(df_selected_industry)
-
-            # Plotting for IG Ranking Graph
             with chart_col:
                 plotting(df_sector_final,df_selected_industry,selected_sector,selected_industry)
-
-            # Sector and IG Summary Pane
             with data_col:
                 df_sector_daily_changes = summary_sector(df)
                 df_daily_changes = summary(df)
-
             st.markdown("""---""")
             daily_sector_signal_changes(df_sector_daily_changes)
             daily_signal_changes(df_daily_changes)
@@ -173,51 +162,6 @@ with tab_main:
         df['position_st'] = df['alert_st'].diff()
         df['position_lt'] = df['alert_lt'].diff()
 
-    def get_fig_from_selected_industry(df_selected_industry, selected_industry):
-        fig = px.line(df_selected_industry, x=df_selected_industry.index, y=['Ind Group Rank',df_selected_industry[short_term_col],df_selected_industry[mid_term_col],df_selected_industry[long_term_col]],
-                        hover_name='Name',template = 'plotly_dark',
-                        color_discrete_map={'Ind Group Rank':'light blue',short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
-                        )
-
-        fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_st'] == -1].index,
-                        y=df_selected_industry[short_term_col][df_selected_industry['position_st'] == -1],
-                        name= 'ST Buy',
-                        mode='markers',
-                        marker_symbol='star-triangle-up',
-                        marker_color='green', marker_size=15)
-
-        fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_st'] == 1].index,
-                        y=df_selected_industry[short_term_col][df_selected_industry['position_st'] == 1],
-                        name= 'ST Sell',
-                        mode='markers',
-                        marker_symbol='star-triangle-down',
-                        marker_color='red', marker_size=15)
-
-        fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_lt'] == -1].index,
-                        y=df_selected_industry[mid_term_col][df_selected_industry['position_lt'] == -1],
-                        name= 'LT Buy',
-                        mode='markers',
-                        marker_symbol='star-triangle-up',
-                        marker_color='blue', marker_size=15)
-
-        fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_lt'] == 1].index,
-                        y=df_selected_industry[mid_term_col][df_selected_industry['position_lt'] == 1],
-                        name= 'LT Sell',
-                        mode='markers',
-                        marker_symbol='star-triangle-down',
-                        marker_color='orange', marker_size=15)
-
-        fig.update_layout(
-                        title=selected_industry,
-                        xaxis_title="Date",
-                        yaxis_title="IG Ranking",
-                        legend_title ='')
-
-        fig.update_yaxes(autorange="reversed")
-        fig.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": "Ind Group Rank"})
-
-        return fig
-        
 
     def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_industry):
 
@@ -291,7 +235,48 @@ with tab_main:
 
         if st.checkbox('Plot IG Ranking Graph'):
             st.subheader('IBD Industry Group Ranking')
-            fig = get_fig_from_selected_industry(df_selected_industry, selected_industry)
+
+            fig = px.line(df_selected_industry, x=df_selected_industry.index, y=['Ind Group Rank',df_selected_industry[short_term_col],df_selected_industry[mid_term_col],df_selected_industry[long_term_col]],
+                            hover_name='Name',template = 'plotly_dark',
+                            color_discrete_map={'Ind Group Rank':'light blue',short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
+                            )
+
+            fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_st'] == -1].index,
+                            y=df_selected_industry[short_term_col][df_selected_industry['position_st'] == -1],
+                            name= 'ST Buy',
+                            mode='markers',
+                            marker_symbol='star-triangle-up',
+                            marker_color='green', marker_size=15)
+
+            fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_st'] == 1].index,
+                            y=df_selected_industry[short_term_col][df_selected_industry['position_st'] == 1],
+                            name= 'ST Sell',
+                            mode='markers',
+                            marker_symbol='star-triangle-down',
+                            marker_color='red', marker_size=15)
+
+            fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_lt'] == -1].index,
+                            y=df_selected_industry[mid_term_col][df_selected_industry['position_lt'] == -1],
+                            name= 'LT Buy',
+                            mode='markers',
+                            marker_symbol='star-triangle-up',
+                            marker_color='blue', marker_size=15)
+
+            fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_lt'] == 1].index,
+                            y=df_selected_industry[mid_term_col][df_selected_industry['position_lt'] == 1],
+                            name= 'LT Sell',
+                            mode='markers',
+                            marker_symbol='star-triangle-down',
+                            marker_color='orange', marker_size=15)
+
+            fig.update_layout(
+                            title=selected_industry,
+                            xaxis_title="Date",
+                            yaxis_title="IG Ranking",
+                            legend_title ='')
+
+            fig.update_yaxes(autorange="reversed")
+            fig.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": "Ind Group Rank"})
 
             # checkbox to hide and show the buy & sell dataframe
             if st.checkbox('Buy & Sell IG Data'):
@@ -317,35 +302,8 @@ with tab_main:
                 # write df to streamlit app
                 st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank','Buy Sell ST']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
 
-            # Create the tabs
-            tab_names = []
-            for key in st.session_state:
-                if key.startswith('G'):
-                    name = st.session_state[key]
-                    tab_names.append(name)
+            return st.plotly_chart(fig)
 
-
-            # Industry group selected from menu
-            with st.expander('Selected IG', expanded=False):
-                st.plotly_chart(fig)
-
-            # Tabbed industry groups
-            df = st.session_state['df']
-            if(tab_names):
-                tabs = st.tabs(tab_names)
-                for i, tab in enumerate(tab_names):
-                    with tabs[i]:
-                        min_date = df.index.min()
-                        start_date = min_date
-                        end_date = datetime.date.today()
-
-                        df_selected_industry = df.loc[(df['Name'] == tab) & (df.index >= start_date) & (df.index <= end_date)]
-                        industry_crossover_strategy(df_selected_industry)
-                        # st.write(df_selected_industry)
-                        selected_industry = tab
-
-                        fig = get_fig_from_selected_industry(df_selected_industry, selected_industry)
-                        st.plotly_chart(fig)
 
     def summary_sector(df):
         st.header('Sector & IG Summary')
@@ -463,7 +421,7 @@ with tab_main:
             arr = np.asarray(ig_lst)
 
             # Load the array which is storing the data into a DataFrame
-            df1 = pd.DataFrame(arr.reshape(-1, 13), columns=['Date', 'Symbol','Name','Sector','Ind Group Rank','Ind Mkt Val (bil)',short_term_col,mid_term_col,long_term_col,'alert_st','alert_lt','position_st','position_lt'])
+            df1 = pd.DataFrame(arr.reshape(-1, 13), columns=['Date','Symbol','Name','Sector','Ind Group Rank','Ind Mkt Val (bil)',short_term_col,mid_term_col,long_term_col,'alert_st','alert_lt','position_st','position_lt'])
             df1.index = np.repeat(np.arange(arr.shape[0]), arr.shape[1]) + 1
             df1.index.name = 'id'
             # create buy and sell column, to easily identify the triggers
@@ -512,54 +470,7 @@ with tab_main:
             df_final2.drop(['Ind Group Rank_x','Ind Mkt Val (bil)_x', 'Latest Date'], axis=1, inplace=True)
             # Re-order the dataframe
             df_final2 = df_final2.reindex(columns=['Date','Symbol','Name','Sector','Ind Group Rank','Ind Mkt Val (bil)',short_term_col,mid_term_col,long_term_col,'Buy Sell ST','Buy Sell LT'])
-            # Display the filtered and cleaned DataFrame with a clickable Name column
-
-            # st.write(df_final2)
-
-            st.markdown(
-                """<style>
-                        .element-container button {
-                            height: 1.5em;
-                            color: 'pink';
-                        }
-
-                        .scrollable-table {
-                            height: 500;
-                            overflow-y: scroll;
-                        }
-                    </style>""",
-                unsafe_allow_html=True,
-            )
-
-            def action_callback():
-                st.write(f"You clicked")
-
-            table_height = "300"  # set the desired height here
-            container_style = f"max-height: {table_height};"
-            header_names = columns=['Date', 'Symbol', 'Name', 'Sector', 'Ind Group Rank', 'Ind Mkt Val (bil)', 'EMA_5', 'EMA_13', 'EMA_50', 'Buy Sell ST', 'Buy Sell LT']
-            header_columns = st.columns([2,4,3,6,4,2,2,2,2,2,2,2])
-            for header_name in header_names:
-                header_columns[columns.index(header_name)+1].write(header_name)
-
-            with st.markdown(f'<div style="{container_style} overflow-y: scroll;">', unsafe_allow_html=True):
-                columns = st.columns([2,4,3,6,4,2,2,2,2,2,2,2])  # create one extra column for the button
-                for i, row in df_final2.iterrows():
-                    name = row['Name']
-                    symbol = row['Symbol']
-                    button_type = "➕"
-                    if symbol in st.session_state:
-                        button_type = "➖"
-                    button_phold = columns[0].empty()  # create a placeholder in the first column for the button
-                    do_action = button_phold.button(button_type, key=f'action_{i}')
-                    for j, col_value in enumerate(row):
-                        columns[j+1].write(col_value)  # write column values in the respective column
-                    if do_action:
-                        if symbol in st.session_state:
-                            del st.session_state[symbol]
-                        else:
-                            st.session_state[symbol] = name
-                        st.experimental_rerun()
-            st.markdown("</div>", unsafe_allow_html=True)  # close the div
+            st.write(df_final2)
 
 
             # Call download function
