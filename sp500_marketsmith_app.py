@@ -20,15 +20,18 @@ with tab_main:
     sma_ema = st.sidebar.radio('',mv_options,key=5)
     short_term = st.sidebar.slider('ST', min_value=1,
                                             max_value=30,
-                                            value=5)
+                                            value=5,
+                                            key=11)
 
     mid_term = st.sidebar.slider('IT', min_value=0,
                                             max_value=50,
-                                            value=13)
+                                            value=13,
+                                            key=12)
 
     long_term = st.sidebar.slider('LT',  min_value=21,
                                             max_value=200,
-                                            value=50)
+                                            value=50,
+                                            key=13)
 
     # column names for long and short moving average columns
     short_term_col = sma_ema + '_' + str(short_term)
@@ -42,7 +45,7 @@ with tab_main:
         # allow user to upload their own file through a streamlit sile uploader
         uploaded_file = st.file_uploader("Please Upload a CSV File",type=['csv'],key=1)
         if uploaded_file is not None:
-            file_details = {"FileName":uploaded_file.name,"FileType":uploaded_file.type,"FileSize":uploaded_file.size,"Key":21}
+            file_details = {"FileName":uploaded_file.name,"FileType":uploaded_file.type,"FileSize":uploaded_file.size,"Key":1}
             df = pd.read_csv(uploaded_file, parse_dates=['Date Stamp'])
 
             # extract the date attribute from the datetime object, in order to allow filtering of df between two dates
@@ -630,15 +633,15 @@ with tab_signal:
         # allow user to upload their own file through a streamlit sile uploader
         uploaded_file = st.file_uploader("Please Upload a CSV File",type=['csv'],key=3)
         if uploaded_file is not None:
-            file_details = {"FileName":uploaded_file.name,"FileType":uploaded_file.type,"FileSize":uploaded_file.size,"Key":23}
+            file_details = {"FileName":uploaded_file.name,"FileType":uploaded_file.type,"FileSize":uploaded_file.size,"Key":3}
             df = pd.read_csv(uploaded_file, parse_dates=['Date'])
 
             df['Date'] = df['Date'].dt.date
             # date picker filters, find the minimum date in the dataset and use that as the start date
             min_date = df['Date'].min()
             st.sidebar.header("Date Range")
-            start_date = st.sidebar.date_input('Begin',min_date,key=25)
-            end_date = st.sidebar.date_input('End',key=26)
+            start_date = st.sidebar.date_input('Begin',min_date,key=15)
+            end_date = st.sidebar.date_input('End',key=16)
 
             df_filtered = df.loc[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
 
