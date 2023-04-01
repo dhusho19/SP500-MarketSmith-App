@@ -7,6 +7,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import plotly.express as px
 import datetime
+st.set_page_config(layout="wide")
 
 tab_main, tab_signal = st.tabs(['📈 Main', '📈 Sector & IG Signals'])
 
@@ -568,52 +569,43 @@ with tab_signal:
                 st.write(df)
             col_data, col_chart = st.columns(2)
             with col_data:
+                # size() method to count the number of occurrences of each signal type
                 # Short Term Sell Signals
-                df_st_sell = df_filtered.loc[df_filtered['Buy Sell ST']=='SELL']
-                df_st_sell_cnt = df_st_sell.groupby(['Date'])['Buy Sell ST'].count().reset_index()
+                df_st_sell_cnt = df_filtered[df_filtered['Buy Sell ST'] == 'SELL'].groupby('Date').size().reset_index(name='ST SELL')
                 df_st_sell_cnt.rename(columns = {'Buy Sell ST':'ST SELL'},inplace=True)
 
                 # Short Term Buy Signals
-                df_st_buy = df_filtered.loc[df_filtered['Buy Sell ST']=='BUY']
-                df_st_buy_cnt = df_st_buy.groupby(['Date'])['Buy Sell ST'].count().reset_index()
+                df_st_buy_cnt = df_filtered[df_filtered['Buy Sell ST'] == 'BUY'].groupby('Date').size().reset_index(name='ST BUY')
                 df_st_buy_cnt.rename(columns = {'Buy Sell ST':'ST BUY'},inplace=True)
 
                 # Long Term Sell Signals
-                df_lt_sell = df_filtered.loc[df_filtered['Buy Sell LT']=='SELL']
-                df_lt_sell_cnt = df_lt_sell.groupby(['Date'])['Buy Sell LT'].count().reset_index()
+                df_lt_sell_cnt = df_filtered[df_filtered['Buy Sell LT'] == 'SELL'].groupby('Date').size().reset_index(name='LT SELL')
                 df_lt_sell_cnt.rename(columns = {'Buy Sell LT':'LT SELL'},inplace=True)
 
                 # Long Term Buy Signals
-                df_lt_buy = df_filtered.loc[df_filtered['Buy Sell LT']=='BUY']
-                df_lt_buy_cnt = df_lt_buy.groupby(['Date'])['Buy Sell LT'].count().reset_index()
+                df_lt_buy_cnt = df_filtered[df_filtered['Buy Sell LT'] == 'BUY'].groupby('Date').size().reset_index(name='LT BUY')
                 df_lt_buy_cnt.rename(columns = {'Buy Sell LT':'LT BUY'},inplace=True)
 
-
+                # Merge datasets
                 df_st_cnt = pd.merge(df_st_sell_cnt, df_st_buy_cnt, on=['Date'], how='left')
                 df_lt_cnt = pd.merge(df_lt_sell_cnt, df_lt_buy_cnt, on=['Date'], how='left')
                 df_final_cnt = pd.merge(df_st_cnt, df_lt_cnt, on=['Date'], how='left')
 
                 if 'IG_Signals' in file_details['FileName']:
-                    df_final_cnt['ST Sell %'] = df_final_cnt['ST SELL'] / 197 * 100
-                    df_final_cnt['ST Buy %'] = df_final_cnt['ST BUY'] / 197 * 100
-                    df_final_cnt['LT Sell %'] = df_final_cnt['LT SELL'] / 197 * 100
-                    df_final_cnt['LT Buy %'] = df_final_cnt['LT BUY'] / 197 * 100
-
+                    denominator = 197
                 elif 'Sector_Signals' in file_details['FileName']:
-                    df_final_cnt['ST Sell %'] = df_final_cnt['ST SELL'] / 33 * 100
-                    df_final_cnt['ST Buy %'] = df_final_cnt['ST BUY'] / 33 * 100
-                    df_final_cnt['LT Sell %'] = df_final_cnt['LT SELL'] / 33 * 100
-                    df_final_cnt['LT Buy %'] = df_final_cnt['LT BUY'] / 33 * 100
+                    denominator = 33
+                else:
+                    # Handle the case where neither 'IG_Signals' nor 'Sector_Signals' is in the file name
+                    denominator = 1
 
-                df_final_cnt['ST Sell %'] = df_final_cnt['ST Sell %'].astype('float32').round(0).astype('float')
-                df_final_cnt['ST Buy %'] = df_final_cnt['ST Buy %'].astype('float32').round(0).astype('float')
-                df_final_cnt['ST Sell %'] = df_final_cnt['ST Sell %'].astype('float32').round(0).astype('int')
-                df_final_cnt['ST Buy %'] = df_final_cnt['ST Buy %'].astype('float32').round(0).astype('int')
+                df_final_cnt[['ST Sell %', 'ST Buy %', 'LT Sell %', 'LT Buy %']] = df_final_cnt[['ST SELL', 'ST BUY', 'LT SELL', 'LT BUY']] / denominator * 100
 
-                df_final_cnt['LT Sell %'] = df_final_cnt['LT Sell %'].astype('float32').round(0).astype('float')
-                df_final_cnt['LT Buy %'] = df_final_cnt['LT Buy %'].astype('float32').round(0).astype('float')
-                df_final_cnt['LT Sell %'] = df_final_cnt['LT Sell %'].astype('float32').round(0).astype('int')
-                df_final_cnt['LT Buy %'] = df_final_cnt['LT Buy %'].astype('float32').round(0).astype('int')
+                df_final_cnt[['ST Sell %', 'ST Buy %', 'LT Sell %', 'LT Buy %']] = (df_final_cnt[['ST Sell %', 'ST Buy %', 'LT Sell %', 'LT Buy %']]
+                                                                                    .astype('float32')
+                                                                                    .round(0)
+                                                                                    .astype('int'))
+
 
                 df_final_cnt.set_index('Date', inplace=True)
                 st.write(df_final_cnt)
