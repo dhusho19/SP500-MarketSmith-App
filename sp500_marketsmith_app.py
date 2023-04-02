@@ -7,6 +7,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import plotly.express as px
 import datetime
+import webbrowser
+import tempfile
 st.set_page_config(layout="wide")
 
 tab_main, tab_signal = st.tabs(['📈 Main', '📈 Sector & IG Signals'])
@@ -116,6 +118,7 @@ with tab_main:
             st.info("hushon.d@googlemail.com")
             st.text("Donovan Hushon")
 
+
     def sector_crossover_strategy(df):
         if sma_ema == 'SMA':
             # Sector
@@ -159,6 +162,17 @@ with tab_main:
         # create a new column 'Position' which is a day-to-day difference of the alert column.
         df['position_st'] = df['alert_st'].diff()
         df['position_lt'] = df['alert_lt'].diff()
+
+
+    # define function to open chart in new browser window
+    def open_chart(fig):
+        # convert Plotly figure to HTML and save to temporary file
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.html') as f:
+            f.write(fig.to_html(include_plotlyjs='cdn'))
+            url = 'file://' + f.name  # constr  uct URL to temporary file
+
+        # open URL in new browser window
+        webbrowser.open_new(url)
 
 
     def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_industry):
@@ -229,7 +243,13 @@ with tab_main:
                 # write df to streamlit app
                 st.write(sorted_sector_df.loc[:,['Date','Sector','Sector Rank Avg','Buy Sell ST']].loc[(sorted_sector_df['position_st'].isin([-1,1]))].head(3))
 
-            return st.plotly_chart(fig)
+            # create button to open chart in new window
+            if st.button('Open chart'):
+                open_chart(fig)
+                # display Plotly Express chart
+                st.plotly_chart(fig)
+            else:
+                return st.plotly_chart(fig)
 
         if st.checkbox('Plot IG Ranking Graph'):
             st.subheader('IBD Industry Group Ranking')
@@ -300,7 +320,13 @@ with tab_main:
                 # write df to streamlit app
                 st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank','Buy Sell ST']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
 
-            return st.plotly_chart(fig)
+            # create button to open chart in new window
+            if st.button('Open chart'):
+                open_chart(fig)
+                # display Plotly Express chart
+                st.plotly_chart(fig)
+            else:
+                return st.plotly_chart(fig)
 
 
     def summary_sector(df):
