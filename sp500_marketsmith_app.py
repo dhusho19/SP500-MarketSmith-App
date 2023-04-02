@@ -181,7 +181,7 @@ with tab_main:
 
         with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:
             fig.write_html(f.name)
-            browser_path = whichcraft.which('firefox')
+            browser_path = whichcraft.which('google-chrome')
             webbrowser.get(browser_path).open(f.name, new=2)
 
 
