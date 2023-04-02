@@ -9,6 +9,7 @@ import plotly.express as px
 import datetime
 import webbrowser
 import tempfile
+import whichcraft
 st.set_page_config(layout="wide")
 
 tab_main, tab_signal = st.tabs(['📈 Main', '📈 Sector & IG Signals'])
@@ -174,9 +175,14 @@ with tab_main:
         # open URL in new browser window
         #webbrowser.open_new(url)
 
+        #with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:
+        #    fig.write_html(f.name)
+        #    webbrowser.open(f.name, new=2)
+
         with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:
             fig.write_html(f.name)
-            webbrowser.open(f.name, new=2)
+            browser_path = whichcraft.which('firefox')
+            webbrowser.get(browser_path).open(f.name, new=2)
 
 
     def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_industry):
