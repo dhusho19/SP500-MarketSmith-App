@@ -174,12 +174,6 @@ with tab_main:
         # open URL in new browser window
         webbrowser.open_new(url)
 
-        #with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:
-        #    fig.write_html(f.name)
-        #    webbrowser.open(f.name, new=2)
-
-
-
 
     def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_industry):
 
