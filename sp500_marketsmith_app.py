@@ -9,7 +9,6 @@ import plotly.express as px
 import datetime
 import webbrowser
 import tempfile
-import whichcraft
 st.set_page_config(layout="wide")
 
 tab_main, tab_signal = st.tabs(['📈 Main', '📈 Sector & IG Signals'])
