@@ -165,14 +165,16 @@ with tab_main:
 
 
     # define function to open chart in new browser window
-    def open_chart(fig):
+    def open_chart(fig, selected_industry):
+        industry = selected_industry.replace("/", "_") + "_" # Messes up the file path
+
         # convert Plotly figure to HTML and save to temporary file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.html') as f:
-            f.write(fig.to_html(include_plotlyjs='cdn'))
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, prefix=industry, suffix='.html') as f:
+            f.write(fig.to_html(include_plotlyjs='cdn', full_html=True))
             url = 'file://' + f.name  # constr  uct URL to temporary file
 
         # open URL in new browser window
-        webbrowser.open_new(url)
+        webbrowser.open(url, new=2)
 
 
     def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_industry):
@@ -245,7 +247,7 @@ with tab_main:
 
             # create button to open chart in new window
             if st.button('Open chart'):
-                open_chart(fig)
+                open_chart(fig, selected_industry)
                 # display Plotly Express chart
                 st.plotly_chart(fig)
             else:
@@ -322,7 +324,7 @@ with tab_main:
 
             # create button to open chart in new window
             if st.button('Open chart'):
-                open_chart(fig)
+                open_chart(fig, selected_industry)
                 # display Plotly Express chart
                 st.plotly_chart(fig)
             else:
