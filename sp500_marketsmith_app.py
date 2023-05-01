@@ -9,7 +9,8 @@ import plotly.express as px
 import datetime
 import webbrowser
 import tempfile
-import whichcraft
+from streamlit.components.v1 import html
+
 st.set_page_config(layout="wide")
 
 tab_main, tab_signal = st.tabs(['📈 Main', '📈 Sector & IG Signals'])
@@ -103,8 +104,8 @@ with tab_main:
             st.markdown("""---""")
             # function calls
             data_col, chart_col = st.columns(2)
-            sector_crossover_strategy(df_sector_final)
-            industry_crossover_strategy(df_selected_industry)
+            crossover_strategy(df_sector_final, 'Sector Rank Avg')
+            crossover_strategy(df_selected_industry, 'Ind Group Rank')
             with chart_col:
                 plotting(df_sector_final,df_selected_industry,selected_sector,selected_industry)
             with data_col:
@@ -120,67 +121,40 @@ with tab_main:
             st.text("Donovan Hushon")
 
 
-    def sector_crossover_strategy(df):
+    def crossover_strategy(df, rank_col):
+
         if sma_ema == 'SMA':
-            # Sector
-            df[short_term_col] = df['Sector Rank Avg'].rolling(window=short_term, min_periods=1).mean()
-            df[mid_term_col] = df['Sector Rank Avg'].rolling(window=mid_term, min_periods=1).mean()
-            df[long_term_col] = df['Sector Rank Avg'].rolling(window=long_term, min_periods=1).mean()
+            # Sector/Industry
+            df[short_term_col] = df[rank_col].rolling(window=short_term[0], min_periods=1).mean()
+            df[mid_term_col] = df[rank_col].rolling(window=mid_term[1], min_periods=1).mean()
+            df[long_term_col] = df[rank_col].rolling(window=long_term[2], min_periods=1).mean()
 
         elif sma_ema == 'EMA':
-            # Sector
-            df[short_term_col] = df['Sector Rank Avg'].ewm(span=short_term, adjust=False).mean()
-            df[mid_term_col] = df['Sector Rank Avg'].ewm(span=mid_term, adjust=False).mean()
-            df[long_term_col] =  df['Sector Rank Avg'].ewm(span=long_term, adjust=False).mean()
+            # Sector/Industry
+            df[short_term_col] = df[rank_col].ewm(span=short_term, adjust=False).mean()
+            df[mid_term_col] = df[rank_col].ewm(span=mid_term, adjust=False).mean()
+            df[long_term_col] =  df[rank_col].ewm(span=long_term    , adjust=False).mean()
 
-        # signal alerts for crossover strategy Sector
-        df['alert_st'] = 0.0
-        df['alert_st'] = np.where(df[short_term_col]>df[mid_term_col], 1.0, 0.0)
-        df['alert_lt'] = 0.0
-        df['alert_lt'] = np.where(df[mid_term_col]>df[long_term_col], 1.0, 0.0)
-        # create a new column 'Position' which is a day-to-day difference of the alert column.
-        df['position_st'] = df['alert_st'].diff() # 1 is BUY
-        df['position_lt'] = df['alert_lt'].diff()
 
-    def industry_crossover_strategy(df):
-        if sma_ema == 'SMA':
-            # Industry
-            df[short_term_col] = df['Ind Group Rank'].rolling(window=short_term, min_periods=1).mean()
-            df[mid_term_col] = df['Ind Group Rank'].rolling(window=mid_term, min_periods=1).mean()
-            df[long_term_col] = df['Ind Group Rank'].rolling(window=long_term, min_periods=1).mean()
-
-        elif sma_ema == 'EMA':
-            # Industry
-            df[short_term_col] = df['Ind Group Rank'].ewm(span=short_term, adjust=False).mean()
-            df[mid_term_col] = df['Ind Group Rank'].ewm(span=mid_term, adjust=False).mean()
-            df[long_term_col] =  df['Ind Group Rank'].ewm(span=long_term, adjust=False).mean()
-
-        # signal alerts for crossover strategy Industry
-        df['alert_st'] = 0.0
-        df['alert_st'] = np.where(df[short_term_col]>df[mid_term_col], 1.0, 0.0)
-        df['alert_lt'] = 0.0
-        df['alert_lt'] = np.where(df[mid_term_col]>df[long_term_col], 1.0, 0.0)
-        # create a new column 'Position' which is a day-to-day difference of the alert column.
-        df['position_st'] = df['alert_st'].diff()
-        df['position_lt'] = df['alert_lt'].diff()
+            # signal alerts for crossover strategy Sector
+            df['alert_st'] = 0.0
+            df['alert_st'] = np.where(df[short_term_col]>df[mid_term_col], 1.0, 0.0)
+            df['alert_lt'] = 0.0
+            df['alert_lt'] = np.where(df[mid_term_col]>df[long_term_col], 1.0, 0.0)
+            # create a new column 'Position' which is a day-to-day difference of the alert column.
+            df['position_st'] = df['alert_st'].diff() # 1 is BUY
+            df['position_lt'] = df['alert_lt'].diff()
 
 
     # define function to open chart in new browser window
     def open_chart(fig):
-        # convert Plotly figure to HTML and save to temporary file
-       # with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.html') as f:
-        #    f.write(fig.to_html(include_plotlyjs='cdn'))
-        #    url = 'file://' + f.name  # constr  uct URL to temporary file
+        #convert Plotly figure to HTML and save to temporary file
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.html') as f:
+            f.write(fig.to_html(include_plotlyjs='cdn'))
+            url = 'file://' + f.name  # constr  uct URL to temporary file
 
         # open URL in new browser window
-        #webbrowser.open_new(url)
-
-        with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:
-            fig.write_html(f.name)
-            webbrowser.open(f.name, new=2)
-
-
-
+        webbrowser.open_new(url)
 
     def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_industry):
 
@@ -349,7 +323,7 @@ with tab_main:
             for i in sector_lst:
                 df_sector = df.loc[(df['Sector'] == i)]
                 df_sector_ranking = sector_ranking(df_sector)
-                sector_crossover_strategy(df_sector_ranking)
+                crossover_strategy(df_sector_ranking, 'Sector Rank Avg')
                 lst.append(df_sector_ranking)
 
             # create an empty list to store all dataframes, then concatenate them at the end of the iteration
@@ -447,7 +421,7 @@ with tab_main:
             ig_lst = []
             for ig in industry_lst:
                 df_industry = df.loc[(df['Name'] == ig)]
-                industry_crossover_strategy(df_industry)
+                crossover_strategy(df_industry, 'Ind Group Rank')
                 ig_lst.append(df_industry)
             arr = np.asarray(ig_lst)
 
@@ -571,7 +545,6 @@ with tab_main:
 with tab_signal:
     st.title('Market Signal Performance')
     def app_signals():
-
         # allow user to upload their own file through a streamlit sile uploader
         uploaded_file = st.file_uploader("Please Upload a CSV File",type=['csv'],key=3)
         if uploaded_file is not None:
@@ -639,13 +612,16 @@ with tab_signal:
                                                                                     .round(0)
                                                                                     .astype('int'))
 
+                crossover_strategy(df_final_cnt, 'ST SELL')
+                df_final_cnt.drop(['alert_st','alert_lt','position_st','position_lt'], axis=1, inplace=True)
 
                 df_final_cnt.set_index('Date', inplace=True)
                 st.write(df_final_cnt)
 
+
             with col_chart:
                 fig_signals = px.line(df_final_cnt, x=df_final_cnt.index,
-                                    y=[df_final_cnt['ST Sell %'],df_final_cnt['ST Buy %'],df_final_cnt['LT Buy %'],df_final_cnt['LT Sell %']],
+                                    y=[df_final_cnt['ST Sell %'],df_final_cnt['ST Buy %'],df_final_cnt['LT Buy %'],df_final_cnt['LT Sell %'],df_final_cnt[short_term_col],df_final_cnt[mid_term_col],df_final_cnt[long_term_col]],
                                     #hover_name='Sector',
                                     template = 'plotly_dark',
                                     color_discrete_map={'ST Sell %':'yellow', 'ST Buy %':'green', 'LT Sell %':'red', 'LT Buy %':'blue'}
@@ -659,7 +635,6 @@ with tab_signal:
                 fig_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": ["ST Sell %","ST Buy %","LT Sell %","LT Buy %"]})
 
                 return st.plotly_chart(fig_signals)
-
 
 if __name__ == '__main__':
     with tab_main:

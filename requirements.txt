@@ -3,5 +3,3 @@ numpy==1.19.5
 streamlit==1.14.0
 plotly==4.14.3
 plotly-express==0.4.1
-click==8
-whichcraft==0.6.1
