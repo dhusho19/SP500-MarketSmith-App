@@ -11,7 +11,6 @@ import webbrowser
 import tempfile
 from streamlit.components.v1 import html
 
-
 st.set_page_config(layout="wide")
 
 tab_main, tab_signal = st.tabs(['📈 Main', '📈 Sector & IG Signals'])
@@ -135,6 +134,8 @@ with tab_main:
             df[short_term_col] = df[rank_col].ewm(span=short_term, adjust=False).mean()
             df[mid_term_col] = df[rank_col].ewm(span=mid_term, adjust=False).mean()
             df[long_term_col] =  df[rank_col].ewm(span=long_term    , adjust=False).mean()
+
+
             # signal alerts for crossover strategy Sector
             df['alert_st'] = 0.0
             df['alert_st'] = np.where(df[short_term_col]>df[mid_term_col], 1.0, 0.0)
@@ -143,17 +144,17 @@ with tab_main:
             # create a new column 'Position' which is a day-to-day difference of the alert column.
             df['position_st'] = df['alert_st'].diff() # 1 is BUY
             df['position_lt'] = df['alert_lt'].diff()
+
+
     # define function to open chart in new browser window
     def open_chart(fig):
-       # convert Plotly figure to HTML and save to temporary file
+        #convert Plotly figure to HTML and save to temporary file
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.html') as f:
             f.write(fig.to_html(include_plotlyjs='cdn'))
             url = 'file://' + f.name  # constr  uct URL to temporary file
 
         # open URL in new browser window
         webbrowser.open_new(url)
-
->>>>>>> origin/main
 
     def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_industry):
 
