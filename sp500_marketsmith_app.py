@@ -40,7 +40,6 @@ with tab_main:
     long_term_col = sma_ema + '_' + str(long_term)
 
     # date picker filters, find the minimum date in the dataset and use that as the start date
-    #min_date = df.index.min()
     date_string = '2021-05-18'
     date_format = '%Y-%m-%d'
     min_date = datetime.strptime(date_string, date_format)
@@ -74,12 +73,6 @@ with tab_main:
 
             # store users Industry selection
             selected_industry = st.sidebar.selectbox('', industry)
-
-            # date picker filters, find the minimum date in the dataset and use that as the start date
-            #min_date = df.index.min() 2021/05/18
-            #st.sidebar.header("Date Range")
-            #start_date = st.sidebar.date_input('Begin',min_date)
-            #end_date = st.sidebar.date_input('End')
 
             # enable toggle to view & unview the dataset
             if st.checkbox('Show File Details & Dataframe'):
@@ -562,11 +555,6 @@ with tab_signal:
             df = pd.read_csv(uploaded_file, parse_dates=['Date'])
 
             df['Date'] = df['Date'].dt.date
-            # date picker filters, find the minimum date in the dataset and use that as the start date
-            #min_date = df['Date'].min()
-            #st.sidebar.header("Date Range")
-            #start_date = st.sidebar.date_input('Begin',min_date)
-            #end_date = st.sidebar.date_input('End',key=26)
 
             df_filtered = df.loc[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
 
@@ -630,6 +618,8 @@ with tab_signal:
                 df_final_cnt.drop(['alert_st','alert_lt','position_st','position_lt', mid_term_col], axis=1, inplace=True)
 
                 df_final_cnt.set_index('Date', inplace=True)
+                df_final_cnt[short_term_col] = df_final_cnt[short_term_col].astype('float32').round(2).astype('int')
+                df_final_cnt[long_term_col] = df_final_cnt[long_term_col].astype('float32').round(2).astype('int')
                 st.write(df_final_cnt)
 
 
@@ -638,7 +628,6 @@ with tab_signal:
                                     y=[df_final_cnt['ST Sell %'],df_final_cnt['ST Buy %'],df_final_cnt['LT Buy %'],df_final_cnt['LT Sell %'],df_final_cnt[short_term_col],df_final_cnt[long_term_col]],
                                     template = 'plotly_dark',
                                     color_discrete_map={'ST Sell %':'light blue','ST Buy %':'yellow','LT Sell %':'purple','LT Sell %':'orange',short_term_col:'green',long_term_col:'red'}
-                                    #color_discrete_map={'ST Sell %':'yellow', 'ST Buy %':'green', 'LT Sell %':'red', 'LT Buy %':'blue'}
                                     )
 
                 fig_signals.update_layout(title='Market Performance',
