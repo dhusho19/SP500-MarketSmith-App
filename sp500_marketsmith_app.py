@@ -6,7 +6,7 @@ import base64
 import streamlit as st
 import streamlit.components.v1 as components
 import plotly.express as px
-import datetime
+from datetime import datetime
 import webbrowser
 import tempfile
 from streamlit.components.v1 import html
@@ -26,19 +26,28 @@ with tab_main:
                                             max_value=30,
                                             value=5)
 
-    mid_term = st.sidebar.slider('IT', min_value=0,
+    mid_term = st.sidebar.slider('IT', min_value=1,
                                             max_value=50,
                                             value=13)
 
-    long_term = st.sidebar.slider('LT',  min_value=21,
+    long_term = st.sidebar.slider('LT',  min_value=1,
                                             max_value=200,
-                                            value=50)
+                                            value=28)
 
     # column names for long and short moving average columns
     short_term_col = sma_ema + '_' + str(short_term)
     mid_term_col = sma_ema + '_' + str(mid_term)
     long_term_col = sma_ema + '_' + str(long_term)
 
+    # date picker filters, find the minimum date in the dataset and use that as the start date
+    #min_date = df.index.min()
+    date_string = '2021-05-18'
+    date_format = '%Y-%m-%d'
+    min_date = datetime.strptime(date_string, date_format)
+
+    st.sidebar.header("Date Range")
+    start_date = st.sidebar.date_input('Begin', min_date)
+    end_date = st.sidebar.date_input('End')
 
     def app():
 
@@ -67,10 +76,10 @@ with tab_main:
             selected_industry = st.sidebar.selectbox('', industry)
 
             # date picker filters, find the minimum date in the dataset and use that as the start date
-            min_date = df.index.min()
-            st.sidebar.header("Date Range")
-            start_date = st.sidebar.date_input('Begin',min_date)
-            end_date = st.sidebar.date_input('End')
+            #min_date = df.index.min() 2021/05/18
+            #st.sidebar.header("Date Range")
+            #start_date = st.sidebar.date_input('Begin',min_date)
+            #end_date = st.sidebar.date_input('End')
 
             # enable toggle to view & unview the dataset
             if st.checkbox('Show File Details & Dataframe'):
@@ -145,16 +154,17 @@ with tab_main:
             df['position_st'] = df['alert_st'].diff() # 1 is BUY
             df['position_lt'] = df['alert_lt'].diff()
 
+        # define function to open chart in new browser window
+    def open_chart(fig, selected_industry):
+        industry = selected_industry.replace("/", "_") + "_" # Messes up the file path
 
-    # define function to open chart in new browser window
-    def open_chart(fig):
-        #convert Plotly figure to HTML and save to temporary file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.html') as f:
-            f.write(fig.to_html(include_plotlyjs='cdn'))
+        # convert Plotly figure to HTML and save to temporary file
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, prefix=industry, suffix='.html') as f:
+            f.write(fig.to_html(include_plotlyjs='cdn', full_html=True))
             url = 'file://' + f.name  # constr  uct URL to temporary file
 
         # open URL in new browser window
-        webbrowser.open_new(url)
+        webbrowser.open(url, new=2)
 
     def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_industry):
 
@@ -226,7 +236,7 @@ with tab_main:
 
             # create button to open chart in new window
             if st.button('Open chart'):
-                open_chart(fig)
+                open_chart(fig, selected_industry)
                 # display Plotly Express chart
                 st.plotly_chart(fig)
             else:
@@ -303,7 +313,7 @@ with tab_main:
 
             # create button to open chart in new window
             if st.button('Open chart'):
-                open_chart(fig)
+                open_chart(fig, selected_industry)
                 # display Plotly Express chart
                 st.plotly_chart(fig)
             else:
@@ -553,10 +563,10 @@ with tab_signal:
 
             df['Date'] = df['Date'].dt.date
             # date picker filters, find the minimum date in the dataset and use that as the start date
-            min_date = df['Date'].min()
-            st.sidebar.header("Date Range")
-            start_date = st.sidebar.date_input('Begin',min_date,key=25)
-            end_date = st.sidebar.date_input('End',key=26)
+            #min_date = df['Date'].min()
+            #st.sidebar.header("Date Range")
+            #start_date = st.sidebar.date_input('Begin',min_date)
+            #end_date = st.sidebar.date_input('End',key=26)
 
             df_filtered = df.loc[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
 
@@ -573,6 +583,10 @@ with tab_signal:
                 st.markdown('** Original Dataset:**')
                 st.write('>Data Dimension: ' + str(df.shape[0]) + ' rows and ' + str(df.shape[1]) + ' columns.')
                 st.write(df)
+
+            signal = ['ST Sell %','ST Buy %','LT Sell %','LT Buy %']
+            signal_options = st.multiselect('Buy & Sell % Signal Options',signal, default=signal)
+
             col_data, col_chart = st.columns(2)
             with col_data:
                 # size() method to count the number of occurrences of each signal type
@@ -612,8 +626,8 @@ with tab_signal:
                                                                                     .round(0)
                                                                                     .astype('int'))
 
-                crossover_strategy(df_final_cnt, 'ST SELL')
-                df_final_cnt.drop(['alert_st','alert_lt','position_st','position_lt'], axis=1, inplace=True)
+                crossover_strategy(df_final_cnt, 'ST Sell %')
+                df_final_cnt.drop(['alert_st','alert_lt','position_st','position_lt', mid_term_col], axis=1, inplace=True)
 
                 df_final_cnt.set_index('Date', inplace=True)
                 st.write(df_final_cnt)
@@ -621,18 +635,19 @@ with tab_signal:
 
             with col_chart:
                 fig_signals = px.line(df_final_cnt, x=df_final_cnt.index,
-                                    y=[df_final_cnt['ST Sell %'],df_final_cnt['ST Buy %'],df_final_cnt['LT Buy %'],df_final_cnt['LT Sell %'],df_final_cnt[short_term_col],df_final_cnt[mid_term_col],df_final_cnt[long_term_col]],
-                                    #hover_name='Sector',
+                                    y=[df_final_cnt['ST Sell %'],df_final_cnt['ST Buy %'],df_final_cnt['LT Buy %'],df_final_cnt['LT Sell %'],df_final_cnt[short_term_col],df_final_cnt[long_term_col]],
                                     template = 'plotly_dark',
-                                    color_discrete_map={'ST Sell %':'yellow', 'ST Buy %':'green', 'LT Sell %':'red', 'LT Buy %':'blue'}
+                                    color_discrete_map={'ST Sell %':'light blue','ST Buy %':'yellow','LT Sell %':'purple','LT Sell %':'orange',short_term_col:'green',long_term_col:'red'}
+                                    #color_discrete_map={'ST Sell %':'yellow', 'ST Buy %':'green', 'LT Sell %':'red', 'LT Buy %':'blue'}
                                     )
 
                 fig_signals.update_layout(title='Market Performance',
-                                        xaxis_title="Date",
-                                        yaxis_title="Short Term Signal Count",
-                                        legend_title=''
-                                        )
-                fig_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": ["ST Sell %","ST Buy %","LT Sell %","LT Buy %"]})
+                                    xaxis_title="Date",
+                                    yaxis_title="Signal Count",
+                                    legend_title=''
+                                    )
+                fig_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Buy %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Buy %'})
+
 
                 return st.plotly_chart(fig_signals)
 
