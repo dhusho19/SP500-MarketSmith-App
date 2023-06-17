@@ -10,6 +10,7 @@ from datetime import datetime
 import webbrowser
 import tempfile
 from streamlit.components.v1 import html
+from functools import reduce
 
 st.set_page_config(layout="wide")
 
@@ -135,7 +136,7 @@ with tab_main:
             # Sector/Industry
             df[short_term_col] = df[rank_col].ewm(span=short_term, adjust=False).mean()
             df[mid_term_col] = df[rank_col].ewm(span=mid_term, adjust=False).mean()
-            df[long_term_col] =  df[rank_col].ewm(span=long_term    , adjust=False).mean()
+            df[long_term_col] =  df[rank_col].ewm(span=long_term, adjust=False).mean()
 
 
             # signal alerts for crossover strategy Sector
@@ -146,6 +147,31 @@ with tab_main:
             # create a new column 'Position' which is a day-to-day difference of the alert column.
             df['position_st'] = df['alert_st'].diff() # 1 is BUY
             df['position_lt'] = df['alert_lt'].diff()
+
+            return df
+
+    def crossover_marketing_performance(df, rank_col):
+        df = df.copy()
+
+        if sma_ema == 'SMA':
+            # Sector/Industry
+            df[short_term_col] = df[rank_col].rolling(window=short_term[0], min_periods=1).mean()
+            df[long_term_col] = df[rank_col].rolling(window=long_term[2], min_periods=1).mean()
+
+        elif sma_ema == 'EMA':
+            # Sector/Industry
+            df[short_term_col] = df[rank_col].ewm(span=short_term, adjust=False).mean()
+            df[long_term_col] =  df[rank_col].ewm(span=long_term, adjust=False).mean()
+
+
+            # signal alerts for crossover strategy Sector
+            df['alert'] = 0.0
+            df['alert'] = np.where(df[short_term_col]>df[long_term_col], 1.0, 0.0)
+
+            # create a new column 'Position' which is a day-to-day difference of the alert column.
+            df['position'] = df['alert'].diff() # 1 is BUY
+
+            return df
 
         # define function to open chart in new browser window
     def open_chart(fig, selected_industry):
@@ -386,6 +412,7 @@ with tab_main:
             # Drop the latest date column & dropped the instances of Sector Rnk when the signal occurred.
             df_sector_final.drop(['Sector Rank Avg Old','Date_y','Sector Rank', short_term_col+'_y', mid_term_col+'_y', long_term_col+'_y', 'alert_st', 'alert_lt', 'position_st', 'position_lt','Buy Sell ST_y', 'Buy Sell LT_y'], axis=1, inplace=True)
 
+            df_sector_final['Sector Rank Avg'] = df_sector_final['Sector Rank Avg'].astype('float32').round(2).astype('int')
             # Restructure columns in dataframe
             df_sector_final = df_sector_final.reindex(columns=['Date','Sector','Sector Rank Avg',short_term_col,mid_term_col,long_term_col,'Buy Sell ST','Buy Sell LT'])
 
@@ -572,8 +599,8 @@ with tab_signal:
                 st.write('>Data Dimension: ' + str(df.shape[0]) + ' rows and ' + str(df.shape[1]) + ' columns.')
                 st.write(df)
 
-            signal = ['ST Sell %','ST Buy %','LT Sell %','LT Buy %']
-            signal_options = st.multiselect('Buy & Sell % Signal Options',signal, default=signal)
+            #signal = ['ST Sell %','ST Buy %','LT Sell %','LT Buy %']
+            #signal_options = st.multiselect('Buy & Sell % Signal Options',signal, default=signal)
 
             col_data, col_chart = st.columns(2)
             with col_data:
@@ -613,21 +640,77 @@ with tab_signal:
                                                                                     .astype('float32')
                                                                                     .round(0)
                                                                                     .astype('int'))
-
-                crossover_strategy(df_final_cnt, 'ST Sell %')
-                df_final_cnt.drop(['alert_st','alert_lt','position_st','position_lt', mid_term_col], axis=1, inplace=True)
-
                 df_final_cnt.set_index('Date', inplace=True)
-                df_final_cnt[short_term_col] = df_final_cnt[short_term_col].astype('float32').round(2).astype('int')
-                df_final_cnt[long_term_col] = df_final_cnt[long_term_col].astype('float32').round(2).astype('int')
-                st.write(df_final_cnt)
 
+                # Filter the dataframe based on selected options / THIS REMOVES THE COLUMSN ON USER SELECTION
+                # df_filtered = df_final_cnt[signal_options]
+
+                # Display the filtered dataframe
+                st.write(df_final_cnt)
+                st.markdown("""---""")
+                # Create an empty dataframe to store the intermediate results
+                df_final_overall = df_final_cnt.copy()
+
+                column_mapping = {
+                    'ST Sell %': '_ST_Sell_%',
+                    'ST Buy %': '_ST_Buy_%',
+                    'LT Sell %': '_LT_Sell_%',
+                    'LT Buy %': '_LT_Buy_%'
+                }
+
+                dataframes = []
+
+                for col in column_mapping:
+                    df = crossover_marketing_performance(df_final_overall, col)
+                    df['Buy Sell'] = np.where(df['alert'] == 0, 'BUY', 'SELL')
+                    suffix = column_mapping[col]
+                    df.rename(columns={
+                        short_term_col: short_term_col + suffix,
+                        long_term_col: long_term_col + suffix,
+                        'Buy Sell': 'Buy Sell ' + col,
+                        'position': 'position' + suffix
+                    }, inplace=True)
+                    df.drop(['alert'], axis=1, inplace=True)
+                    dataframes.append(df)
+
+
+                df1, df2, df3, df4 = dataframes
+
+
+                dfs = [df1, df2, df3, df4]
+                df_combined = reduce(lambda  left,right: pd.merge(left,right,on=['Date', 'ST SELL', 'ST BUY',
+                                                                                 'LT SELL', 'LT BUY', 'ST Sell %',
+                                                                                 'ST Buy %', 'LT Sell %', 'LT Buy %'],
+                                                                                  how='outer'), dfs)
+
+                # Rounding formatting
+                df_combined[short_term_col+'_ST_Sell_%'] = df_combined[short_term_col+'_ST_Sell_%'].astype('float32').round(2).astype('int')
+                df_combined[long_term_col+'_ST_Sell_%'] = df_combined[long_term_col+'_ST_Sell_%'].astype('float32').round(2).astype('int')
+
+                df_combined[short_term_col+'_ST_Buy_%'] = df_combined[short_term_col+'_ST_Buy_%'].astype('float32').round(2).astype('int')
+                df_combined[long_term_col+'_ST_Buy_%'] = df_combined[long_term_col+'_ST_Buy_%'].astype('float32').round(2).astype('int')
+
+                df_combined[short_term_col+'_LT_Sell_%'] = df_combined[short_term_col+'_LT_Sell_%'].astype('float32').round(2).astype('int')
+                df_combined[long_term_col+'_LT_Sell_%'] = df_combined[long_term_col+'_LT_Sell_%'].astype('float32').round(2).astype('int')
+
+                df_combined[short_term_col+'_ST_Sell_%'] = df_combined[short_term_col+'_ST_Sell_%'].astype('float32').round(2).astype('int')
+                df_combined[long_term_col+'_LT_Buy_%'] = df_combined[long_term_col+'_LT_Buy_%'].astype('float32').round(2).astype('int')
+
+                st.write(df_combined)
+
+                # Call download function
+                csv = convert_df(df_combined)
+                st.download_button(label="Download dataset as CSV",
+                    data=csv,
+                    file_name='Moving_Average_Percentages.csv',
+                    mime='text/csv')
 
             with col_chart:
+                # original overview plot
                 fig_signals = px.line(df_final_cnt, x=df_final_cnt.index,
-                                    y=[df_final_cnt['ST Sell %'],df_final_cnt['ST Buy %'],df_final_cnt['LT Buy %'],df_final_cnt['LT Sell %'],df_final_cnt[short_term_col],df_final_cnt[long_term_col]],
+                                    y=[df_final_cnt['ST Sell %'],df_final_cnt['ST Buy %'],df_final_cnt['LT Buy %'],df_final_cnt['LT Sell %']],
                                     template = 'plotly_dark',
-                                    color_discrete_map={'ST Sell %':'light blue','ST Buy %':'yellow','LT Sell %':'purple','LT Sell %':'orange',short_term_col:'green',long_term_col:'red'}
+                                    color_discrete_map={'ST Sell %':'light blue','ST Buy %':'yellow','LT Sell %':'purple','LT Sell %':'orange'}
                                     )
 
                 fig_signals.update_layout(title='Market Performance',
@@ -638,7 +721,112 @@ with tab_signal:
                 fig_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Buy %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Buy %'})
 
 
-                return st.plotly_chart(fig_signals)
+                st.plotly_chart(fig_signals)
+                #st.markdown("""---""")
+
+                # Define the desired order of columns in the legend
+                column_order = ['ST Sell %', short_term_col+'_ST_Sell_%', long_term_col+'_ST_Sell_%', 'Buy_ST_Sell_%', 'Sell_ST_Sell_%',
+                                'ST Buy %', short_term_col+'_ST_Buy_%', long_term_col+'_ST_Buy_%', 'Buy_ST_Buy_%', 'Sell_ST_Buy_%',
+                                'LT Sell %', short_term_col+'_LT_Sell_%', long_term_col+'_LT_Sell_%', 'Buy_LT_Sell_%', 'Sell_LT_Sell_%',
+                                'LT Buy %', short_term_col+'_LT_Buy_%', long_term_col+'_LT_Buy_%', 'Buy_LT_Buy_%', 'Sell_LT_Buy_%']
+
+
+                # Reorder columns in df_combined
+                df6 = df_combined.loc[:,['ST Sell %', short_term_col+'_ST_Sell_%', long_term_col+'_ST_Sell_%',
+                                'ST Buy %', short_term_col+'_ST_Buy_%', long_term_col+'_ST_Buy_%',
+                                'LT Sell %', short_term_col+'_LT_Sell_%', long_term_col+'_LT_Sell_%',
+                                'LT Buy %', short_term_col+'_LT_Buy_%', long_term_col+'_LT_Buy_%']]
+
+
+                # averages plot
+                fig_average_signals = px.line(df_combined, x=df_combined.index,
+                                    y=df6.columns,
+                                    category_orders={'legendgroup': column_order},
+                                    template = 'plotly_dark',
+                                    color_discrete_map={'ST Sell %':'light blue','ST Buy %':'yellow','LT Sell %':'purple','LT Sell %':'orange'}
+                                    )
+
+                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Sell_%'] == 1].index,
+                                y=df_combined[short_term_col+'_ST_Sell_%'][df_combined['position'+'_ST_Sell_%'] == 1],
+                                name= 'Buy_ST_Sell_%',
+                                mode='markers',
+                                marker_symbol='star-triangle-up',
+                                legendgroup='Buy_ST_Sell_%',
+                                marker_color='green', marker_size=15)
+
+                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Sell_%'] == -1].index,
+                                y=df_combined[short_term_col+'_ST_Sell_%'][df_combined['position'+'_ST_Sell_%'] == -1],
+                                name= 'Sell_ST_Sell_%',
+                                mode='markers',
+                                marker_symbol='star-triangle-down',
+                                legendgroup='Sell_ST_Sell_%',
+                                marker_color='red', marker_size=15)
+
+                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Buy_%'] == 1].index,
+                                y=df_combined[short_term_col+'_ST_Buy_%'][df_combined['position'+'_ST_Buy_%'] == 1],
+                                name= 'Buy_ST_Buy_%',
+                                mode='markers',
+                                marker_symbol='star-triangle-up',
+                                legendgroup='Buy_ST_Buy_%',
+                                marker_color='green', marker_size=15)
+
+                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Buy_%'] == -1].index,
+                                y=df_combined[short_term_col+'_ST_Buy_%'][df_combined['position'+'_ST_Buy_%'] == -1],
+                                name= 'Sell_ST_Buy_%',
+                                mode='markers',
+                                marker_symbol='star-triangle-down',
+                                legendgroup='Sell_ST_Buy_%',
+                                marker_color='red', marker_size=15)
+
+                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Sell_%'] == 1].index,
+                                y=df_combined[short_term_col+'_LT_Sell_%'][df_combined['position'+'_LT_Sell_%'] == 1],
+                                name= 'Buy_LT_Sell_%',
+                                mode='markers',
+                                marker_symbol='star-triangle-up',
+                                legendgroup='Buy_LT_Sell_%',
+                                marker_color='green', marker_size=15)
+
+                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Sell_%'] == -1].index,
+                                y=df_combined[short_term_col+'_LT_Sell_%'][df_combined['position'+'_LT_Sell_%'] == -1],
+                                name= 'Sell_LT_Sell_%',
+                                mode='markers',
+                                marker_symbol='star-triangle-down',
+                                legendgroup='Buy_LT_Sell_%',
+                                marker_color='red', marker_size=15)
+
+
+                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Buy_%'] == 1].index,
+                                y=df_combined[short_term_col+'_LT_Buy_%'][df_combined['position'+'_LT_Buy_%'] == 1],
+                                name= 'Buy_LT_Buy_%',
+                                mode='markers',
+                                marker_symbol='star-triangle-up',
+                                legendgroup='Buy_LT_Buy_%',
+                                marker_color='green', marker_size=15)
+
+                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Buy_%'] == -1].index,
+                                y=df_combined[short_term_col+'_LT_Buy_%'][df_combined['position'+'_LT_Buy_%'] == -1],
+                                name= 'Sell_LT_Buy_%',
+                                mode='markers',
+                                marker_symbol='star-triangle-down',
+                                legendgroup='Sell_LT_Buy_%',
+                                marker_color='red', marker_size=15)
+
+
+                # Sort the legend items
+                #fig_average_signals.update_layout(legend=dict(traceorder='normal'))
+
+                # Set the desired legend order
+                #fig_average_signals.for_each_trace(lambda t: t.update(legendgroup=column_order.index(t.name)))
+
+                fig_average_signals.update_layout(title='Market Signal Performance',
+                                    xaxis_title="Date",
+                                    yaxis_title="Signal Count",
+                                    legend_title=''
+                                    )
+
+                fig_average_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Buy %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Buy %'})
+
+                st.plotly_chart(fig_average_signals)
 
 if __name__ == '__main__':
     with tab_main:
