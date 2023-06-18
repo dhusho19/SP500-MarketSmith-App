@@ -29,11 +29,11 @@ with tab_main:
 
     mid_term = st.sidebar.slider('IT', min_value=1,
                                             max_value=50,
-                                            value=13)
+                                            value=10)
 
     long_term = st.sidebar.slider('LT',  min_value=1,
                                             max_value=200,
-                                            value=28)
+                                            value=13)
 
     # column names for long and short moving average columns
     short_term_col = sma_ema + '_' + str(short_term)
@@ -41,7 +41,7 @@ with tab_main:
     long_term_col = sma_ema + '_' + str(long_term)
 
     # date picker filters, find the minimum date in the dataset and use that as the start date
-    date_string = '2021-05-18'
+    date_string = '2021-05-19'
     date_format = '%Y-%m-%d'
     min_date = datetime.strptime(date_string, date_format)
 
@@ -605,25 +605,25 @@ with tab_signal:
             col_data, col_chart = st.columns(2)
             with col_data:
                 # size() method to count the number of occurrences of each signal type
-                # Short Term Sell Signals
-                df_st_sell_cnt = df_filtered[df_filtered['Buy Sell ST'] == 'SELL'].groupby('Date').size().reset_index(name='ST SELL')
-                df_st_sell_cnt.rename(columns = {'Buy Sell ST':'ST SELL'},inplace=True)
-
                 # Short Term Buy Signals
                 df_st_buy_cnt = df_filtered[df_filtered['Buy Sell ST'] == 'BUY'].groupby('Date').size().reset_index(name='ST BUY')
                 df_st_buy_cnt.rename(columns = {'Buy Sell ST':'ST BUY'},inplace=True)
 
-                # Long Term Sell Signals
-                df_lt_sell_cnt = df_filtered[df_filtered['Buy Sell LT'] == 'SELL'].groupby('Date').size().reset_index(name='LT SELL')
-                df_lt_sell_cnt.rename(columns = {'Buy Sell LT':'LT SELL'},inplace=True)
+                # Short Term Sell Signals
+                df_st_sell_cnt = df_filtered[df_filtered['Buy Sell ST'] == 'SELL'].groupby('Date').size().reset_index(name='ST SELL')
+                df_st_sell_cnt.rename(columns = {'Buy Sell ST':'ST SELL'},inplace=True)
 
                 # Long Term Buy Signals
                 df_lt_buy_cnt = df_filtered[df_filtered['Buy Sell LT'] == 'BUY'].groupby('Date').size().reset_index(name='LT BUY')
                 df_lt_buy_cnt.rename(columns = {'Buy Sell LT':'LT BUY'},inplace=True)
 
+                # Long Term Sell Signals
+                df_lt_sell_cnt = df_filtered[df_filtered['Buy Sell LT'] == 'SELL'].groupby('Date').size().reset_index(name='LT SELL')
+                df_lt_sell_cnt.rename(columns = {'Buy Sell LT':'LT SELL'},inplace=True)
+
                 # Merge datasets
-                df_st_cnt = pd.merge(df_st_sell_cnt, df_st_buy_cnt, on=['Date'], how='left')
-                df_lt_cnt = pd.merge(df_lt_sell_cnt, df_lt_buy_cnt, on=['Date'], how='left')
+                df_st_cnt = pd.merge(df_st_buy_cnt, df_st_sell_cnt, on=['Date'], how='left')
+                df_lt_cnt = pd.merge(df_lt_buy_cnt, df_lt_sell_cnt, on=['Date'], how='left')
                 df_final_cnt = pd.merge(df_st_cnt, df_lt_cnt, on=['Date'], how='left')
 
                 if 'IG_Signals' in file_details['FileName']:
@@ -634,16 +634,16 @@ with tab_signal:
                     # Handle the case where neither 'IG_Signals' nor 'Sector_Signals' is in the file name
                     denominator = 1
 
-                df_final_cnt[['ST Sell %', 'ST Buy %', 'LT Sell %', 'LT Buy %']] = df_final_cnt[['ST SELL', 'ST BUY', 'LT SELL', 'LT BUY']] / denominator * 100
+                df_final_cnt[['ST Buy %', 'ST Sell %', 'LT Buy %', 'LT Sell %']] = df_final_cnt[['ST BUY', 'ST SELL', 'LT BUY', 'LT SELL']] / denominator * 100
 
-                df_final_cnt[['ST Sell %', 'ST Buy %', 'LT Sell %', 'LT Buy %']] = (df_final_cnt[['ST Sell %', 'ST Buy %', 'LT Sell %', 'LT Buy %']]
+                df_final_cnt[['ST Buy %', 'ST Sell %', 'LT Buy %', 'LT Sell %']] = (df_final_cnt[['ST Buy %', 'ST Sell %', 'LT Buy %', 'LT Sell %']]
                                                                                     .astype('float32')
                                                                                     .round(0)
                                                                                     .astype('int'))
                 df_final_cnt.set_index('Date', inplace=True)
 
                 # Filter the dataframe based on selected options / THIS REMOVES THE COLUMSN ON USER SELECTION
-                # df_filtered = df_final_cnt[signal_options]
+                #   df_filtered = df_final_cnt[signal_options]
 
                 # Display the filtered dataframe
                 st.write(df_final_cnt)
@@ -652,10 +652,10 @@ with tab_signal:
                 df_final_overall = df_final_cnt.copy()
 
                 column_mapping = {
-                    'ST Sell %': '_ST_Sell_%',
                     'ST Buy %': '_ST_Buy_%',
+                    'ST Sell %': '_ST_Sell_%',
+                    'LT Buy %': '_LT_Buy_%',
                     'LT Sell %': '_LT_Sell_%',
-                    'LT Buy %': '_LT_Buy_%'
                 }
 
                 dataframes = []
@@ -676,25 +676,22 @@ with tab_signal:
 
                 df1, df2, df3, df4 = dataframes
 
-
                 dfs = [df1, df2, df3, df4]
-                df_combined = reduce(lambda  left,right: pd.merge(left,right,on=['Date', 'ST SELL', 'ST BUY',
-                                                                                 'LT SELL', 'LT BUY', 'ST Sell %',
-                                                                                 'ST Buy %', 'LT Sell %', 'LT Buy %'],
+
+                df_combined = reduce(lambda  left,right: pd.merge(left,right,on=['Date', 'ST BUY', 'ST SELL',
+                                                                                 'LT BUY', 'LT SELL',
+                                                                                 'ST Buy %', 'ST Sell %',
+                                                                                 'LT Buy %', 'LT Sell %'],
                                                                                   how='outer'), dfs)
 
                 # Rounding formatting
-                df_combined[short_term_col+'_ST_Sell_%'] = df_combined[short_term_col+'_ST_Sell_%'].astype('float32').round(2).astype('int')
-                df_combined[long_term_col+'_ST_Sell_%'] = df_combined[long_term_col+'_ST_Sell_%'].astype('float32').round(2).astype('int')
+                columns = [short_term_col, long_term_col]
 
-                df_combined[short_term_col+'_ST_Buy_%'] = df_combined[short_term_col+'_ST_Buy_%'].astype('float32').round(2).astype('int')
-                df_combined[long_term_col+'_ST_Buy_%'] = df_combined[long_term_col+'_ST_Buy_%'].astype('float32').round(2).astype('int')
-
-                df_combined[short_term_col+'_LT_Sell_%'] = df_combined[short_term_col+'_LT_Sell_%'].astype('float32').round(2).astype('int')
-                df_combined[long_term_col+'_LT_Sell_%'] = df_combined[long_term_col+'_LT_Sell_%'].astype('float32').round(2).astype('int')
-
-                df_combined[short_term_col+'_ST_Sell_%'] = df_combined[short_term_col+'_ST_Sell_%'].astype('float32').round(2).astype('int')
-                df_combined[long_term_col+'_LT_Buy_%'] = df_combined[long_term_col+'_LT_Buy_%'].astype('float32').round(2).astype('int')
+                for col in columns:
+                    df_combined[col+'_ST_Buy_%'] = df_combined[col+'_ST_Buy_%'].astype('float32').round(2).astype('int')
+                    df_combined[col+'_ST_Sell_%'] = df_combined[col+'_ST_Sell_%'].astype('float32').round(2).astype('int')
+                    df_combined[col+'_LT_Buy_%'] = df_combined[col+'_LT_Buy_%'].astype('float32').round(2).astype('int')
+                    df_combined[col+'_LT_Sell_%'] = df_combined[col+'_LT_Sell_%'].astype('float32').round(2).astype('int')
 
                 st.write(df_combined)
 
@@ -704,6 +701,21 @@ with tab_signal:
                     data=csv,
                     file_name='Moving_Average_Percentages.csv',
                     mime='text/csv')
+
+                            # Define the desired order of columns in the legend
+                column_order = ['ST Buy %', short_term_col+'_ST_Buy_%', long_term_col+'_ST_Buy_%', 'Buy_ST_Buy_%', 'Sell_ST_Buy_%',
+                                'ST Sell %', short_term_col+'_ST_Sell_%', long_term_col+'_ST_Sell_%', 'Buy_ST_Sell_%', 'Sell_ST_Sell_%',
+                                'LT Buy %', short_term_col+'_LT_Buy_%', long_term_col+'_LT_Buy_%', 'Buy_LT_Buy_%', 'Sell_LT_Buy_%'
+                                'LT Sell %', short_term_col+'_LT_Sell_%', long_term_col+'_LT_Sell_%', 'Buy_LT_Sell_%', 'Sell_LT_Sell_%',
+                               ]
+
+
+                # Reorder columns in df_combined
+                df6 = df_combined.loc[:,['ST Buy %', short_term_col+'_ST_Buy_%', long_term_col+'_ST_Buy_%',
+                                'ST Sell %', short_term_col+'_ST_Sell_%', long_term_col+'_ST_Sell_%',
+                                'LT Buy %', short_term_col+'_LT_Buy_%', long_term_col+'_LT_Buy_%',
+                                'LT Sell %', short_term_col+'_LT_Sell_%', long_term_col+'_LT_Sell_%',
+                                ]]
 
             with col_chart:
                 # original overview plot
@@ -723,20 +735,6 @@ with tab_signal:
 
                 st.plotly_chart(fig_signals)
                 #st.markdown("""---""")
-
-                # Define the desired order of columns in the legend
-                column_order = ['ST Sell %', short_term_col+'_ST_Sell_%', long_term_col+'_ST_Sell_%', 'Buy_ST_Sell_%', 'Sell_ST_Sell_%',
-                                'ST Buy %', short_term_col+'_ST_Buy_%', long_term_col+'_ST_Buy_%', 'Buy_ST_Buy_%', 'Sell_ST_Buy_%',
-                                'LT Sell %', short_term_col+'_LT_Sell_%', long_term_col+'_LT_Sell_%', 'Buy_LT_Sell_%', 'Sell_LT_Sell_%',
-                                'LT Buy %', short_term_col+'_LT_Buy_%', long_term_col+'_LT_Buy_%', 'Buy_LT_Buy_%', 'Sell_LT_Buy_%']
-
-
-                # Reorder columns in df_combined
-                df6 = df_combined.loc[:,['ST Sell %', short_term_col+'_ST_Sell_%', long_term_col+'_ST_Sell_%',
-                                'ST Buy %', short_term_col+'_ST_Buy_%', long_term_col+'_ST_Buy_%',
-                                'LT Sell %', short_term_col+'_LT_Sell_%', long_term_col+'_LT_Sell_%',
-                                'LT Buy %', short_term_col+'_LT_Buy_%', long_term_col+'_LT_Buy_%']]
-
 
                 # averages plot
                 fig_average_signals = px.line(df_combined, x=df_combined.index,
