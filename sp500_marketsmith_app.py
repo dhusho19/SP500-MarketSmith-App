@@ -744,16 +744,16 @@ with tab_signal:
                                     color_discrete_map={'ST Sell %':'light blue','ST Buy %':'yellow','LT Sell %':'purple','LT Sell %':'orange'}
                                     )
 
+                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Sell_%'] == -1].index,
+                                    y=df_combined[short_term_col+'_ST_Sell_%'][df_combined['position'+'_ST_Sell_%'] == -1],
+                                    name= 'Buy_ST_Sell_%',
+                                    mode='markers',
+                                    marker_symbol='star-triangle-up',
+                                    legendgroup='Buy_ST_Sell_%',
+                                    marker_color='green', marker_size=15)
+
                 fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Sell_%'] == 1].index,
                                 y=df_combined[short_term_col+'_ST_Sell_%'][df_combined['position'+'_ST_Sell_%'] == 1],
-                                name= 'Buy_ST_Sell_%',
-                                mode='markers',
-                                marker_symbol='star-triangle-up',
-                                legendgroup='Buy_ST_Sell_%',
-                                marker_color='green', marker_size=15)
-
-                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Sell_%'] == -1].index,
-                                y=df_combined[short_term_col+'_ST_Sell_%'][df_combined['position'+'_ST_Sell_%'] == -1],
                                 name= 'Sell_ST_Sell_%',
                                 mode='markers',
                                 marker_symbol='star-triangle-down',
@@ -776,16 +776,16 @@ with tab_signal:
                                 legendgroup='Sell_ST_Buy_%',
                                 marker_color='red', marker_size=15)
 
-                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Sell_%'] == 1].index,
-                                y=df_combined[short_term_col+'_LT_Sell_%'][df_combined['position'+'_LT_Sell_%'] == 1],
+                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Sell_%'] == -1].index,
+                                y=df_combined[short_term_col+'_LT_Sell_%'][df_combined['position'+'_LT_Sell_%'] == -1],
                                 name= 'Buy_LT_Sell_%',
                                 mode='markers',
                                 marker_symbol='star-triangle-up',
                                 legendgroup='Buy_LT_Sell_%',
                                 marker_color='green', marker_size=15)
 
-                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Sell_%'] == -1].index,
-                                y=df_combined[short_term_col+'_LT_Sell_%'][df_combined['position'+'_LT_Sell_%'] == -1],
+                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Sell_%'] == 1].index,
+                                y=df_combined[short_term_col+'_LT_Sell_%'][df_combined['position'+'_LT_Sell_%'] == 1],
                                 name= 'Sell_LT_Sell_%',
                                 mode='markers',
                                 marker_symbol='star-triangle-down',
