@@ -599,9 +599,6 @@ with tab_signal:
                 st.write('>Data Dimension: ' + str(df.shape[0]) + ' rows and ' + str(df.shape[1]) + ' columns.')
                 st.write(df)
 
-            #signal = ['ST Sell %','ST Buy %','LT Sell %','LT Buy %']
-            #signal_options = st.multiselect('Buy & Sell % Signal Options',signal, default=signal)
-
             col_data, col_chart = st.columns(2)
             with col_data:
                 # size() method to count the number of occurrences of each signal type
@@ -641,9 +638,6 @@ with tab_signal:
                                                                                     .round(0)
                                                                                     .astype('int'))
                 df_final_cnt.set_index('Date', inplace=True)
-
-                # Filter the dataframe based on selected options / THIS REMOVES THE COLUMSN ON USER SELECTION
-                #   df_filtered = df_final_cnt[signal_options]
 
                 # Display the filtered dataframe
                 st.write(df_final_cnt)
@@ -702,7 +696,7 @@ with tab_signal:
                     file_name='Moving_Average_Percentages.csv',
                     mime='text/csv')
 
-                            # Define the desired order of columns in the legend
+                # Define the desired order of columns in the legend
                 column_order = ['ST Buy %', short_term_col+'_ST_Buy_%', long_term_col+'_ST_Buy_%', 'Buy_ST_Buy_%', 'Sell_ST_Buy_%',
                                 'ST Sell %', short_term_col+'_ST_Sell_%', long_term_col+'_ST_Sell_%', 'Buy_ST_Sell_%', 'Sell_ST_Sell_%',
                                 'LT Buy %', short_term_col+'_LT_Buy_%', long_term_col+'_LT_Buy_%', 'Buy_LT_Buy_%', 'Sell_LT_Buy_%'
@@ -734,15 +728,18 @@ with tab_signal:
 
 
                 st.plotly_chart(fig_signals)
-                #st.markdown("""---""")
 
                 # averages plot
                 fig_average_signals = px.line(df_combined, x=df_combined.index,
                                     y=df6.columns,
                                     category_orders={'legendgroup': column_order},
                                     template = 'plotly_dark',
-                                    color_discrete_map={'ST Sell %':'light blue','ST Buy %':'yellow','LT Sell %':'purple','LT Sell %':'orange'}
-                                    )
+                                    color_discrete_map={
+                                                        'ST Buy %':'green', short_term_col+'_ST_Buy_%':'green', long_term_col+'_ST_Buy_%':'teal',
+                                                        'ST Sell %':'yellow', short_term_col+'_ST_Sell_%':'yellow', long_term_col+'_ST_Sell_%':'orange',
+                                                        'LT Buy %':'blue', short_term_col+'_LT_Buy_%':'blue', long_term_col+'_LT_Buy_%':'orange',
+                                                        'LT Sell %':'red', short_term_col+'_LT_Sell_%':'red', long_term_col+'_LT_Sell_%':'grey'
+                                                        })
 
                 fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Sell_%'] == -1].index,
                                     y=df_combined[short_term_col+'_ST_Sell_%'][df_combined['position'+'_ST_Sell_%'] == -1],
@@ -810,19 +807,21 @@ with tab_signal:
                                 marker_color='red', marker_size=15)
 
 
-                # Sort the legend items
-                #fig_average_signals.update_layout(legend=dict(traceorder='normal'))
-
-                # Set the desired legend order
-                #fig_average_signals.for_each_trace(lambda t: t.update(legendgroup=column_order.index(t.name)))
-
                 fig_average_signals.update_layout(title='Market Signal Performance',
                                     xaxis_title="Date",
                                     yaxis_title="Signal Count",
                                     legend_title=''
                                     )
 
-                fig_average_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Buy %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Buy %'})
+                fig_average_signals.update_traces(line_dash='dot', selector=dict(name='ST Buy %'))
+                fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_ST_Buy_%'))
+                fig_average_signals.update_traces(line_dash='dot', selector=dict(name='ST Sell %'))
+                fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_ST_Sell_%'))
+
+                fig_average_signals.update_traces(line_dash='dot', selector=dict(name='LT Buy %'))
+                fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_LT_Buy_%'))
+                fig_average_signals.update_traces(line_dash='dot', selector=dict(name='LT Sell %'))
+                fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_LT_Sell_%'))
 
                 st.plotly_chart(fig_average_signals)
 
