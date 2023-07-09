@@ -727,11 +727,11 @@ with tab_signal:
                 fig_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Buy %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Buy %'})
 
                 # The below adds vertical and horziontal lines as the cursor to the plot
-                fig_signals.update_yaxes(showgrid=False, zeroline=False, showticklabels=False,
+                fig_signals.update_yaxes(showgrid=False, zeroline=False, showticklabels=True,
                                 showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
 
-                fig_signals.update_xaxes(showgrid=False, zeroline=False, rangeslider_visible=False, showticklabels=False,
-                                showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
+                fig_signals.update_xaxes(showgrid=False, zeroline=False, rangeslider_visible=False, showticklabels=True,
+                                showspikes=True, spikemode='across', spikesnap='cursor', showline=True, spikedash='solid')
 
                 st.plotly_chart(fig_signals)
 
@@ -830,11 +830,11 @@ with tab_signal:
                 fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_LT_Sell_%'))
 
                 # The below adds vertical and horziontal lines as the cursor to the plot
-                fig_average_signals.update_yaxes(showgrid=False, zeroline=False, showticklabels=False,
+                fig_average_signals.update_yaxes(showgrid=False, zeroline=False, showticklabels=True,
                                 showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
 
-                fig_average_signals.update_xaxes(showgrid=False, zeroline=False, rangeslider_visible=False, showticklabels=False,
-                                showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
+                fig_average_signals.update_xaxes(showgrid=False, zeroline=False, rangeslider_visible=False, showticklabels=True,
+                                showspikes=True, spikemode='across', spikesnap='cursor', showline=True, spikedash='solid')
 
                 st.plotly_chart(fig_average_signals)
 
