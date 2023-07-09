@@ -714,9 +714,9 @@ with tab_signal:
             with col_chart:
                 # original overview plot
                 fig_signals = px.line(df_final_cnt, x=df_final_cnt.index,
-                                    y=[df_final_cnt['ST Sell %'],df_final_cnt['ST Buy %'],df_final_cnt['LT Buy %'],df_final_cnt['LT Sell %']],
+                                    y=[df_final_cnt['ST Buy %'],df_final_cnt['ST Sell %'],df_final_cnt['LT Buy %'],df_final_cnt['LT Sell %']],
                                     template = 'plotly_dark',
-                                    color_discrete_map={'ST Sell %':'light blue','ST Buy %':'yellow','LT Sell %':'purple','LT Sell %':'orange'}
+                                    color_discrete_map={'ST Buy %':'green','ST Sell %':'yellow','LT Sell %':'red','LT Buy %':'blue'}
                                     )
 
                 fig_signals.update_layout(title='Market Performance',
@@ -726,6 +726,12 @@ with tab_signal:
                                     )
                 fig_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Buy %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Buy %'})
 
+                # The below adds vertical and horziontal lines as the cursor to the plot
+                fig_signals.update_yaxes(showgrid=False, zeroline=False, showticklabels=False,
+                                showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
+
+                fig_signals.update_xaxes(showgrid=False, zeroline=False, rangeslider_visible=False, showticklabels=False,
+                                showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
 
                 st.plotly_chart(fig_signals)
 
@@ -822,6 +828,13 @@ with tab_signal:
                 fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_LT_Buy_%'))
                 fig_average_signals.update_traces(line_dash='dot', selector=dict(name='LT Sell %'))
                 fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_LT_Sell_%'))
+
+                # The below adds vertical and horziontal lines as the cursor to the plot
+                fig_average_signals.update_yaxes(showgrid=False, zeroline=False, showticklabels=False,
+                                showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
+
+                fig_average_signals.update_xaxes(showgrid=False, zeroline=False, rangeslider_visible=False, showticklabels=False,
+                                showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
 
                 st.plotly_chart(fig_average_signals)
 
