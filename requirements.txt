@@ -4,4 +4,4 @@ streamlit==1.14.0
 plotly==4.14.3
 plotly-express==0.4.1
 click==8
-mitosheet==0.1.506
+mitosheet==0.1.5
