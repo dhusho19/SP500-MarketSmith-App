@@ -11,10 +11,12 @@ import webbrowser
 import tempfile
 from streamlit.components.v1 import html
 from functools import reduce
+from mitosheet.streamlit.v1 import spreadsheet
+
 
 st.set_page_config(layout="wide")
 
-tab_main, tab_signal = st.tabs(['📈 Main', '📈 Sector & IG Signals'])
+tab_main, tab_signal, tab_excel = st.tabs(['📈 Main', '📈 Sector & IG Signals','📈 Excel'])
 
 with tab_main:
     st.title('MS Sector & Industry Group Rotation')
@@ -25,15 +27,15 @@ with tab_main:
     sma_ema = st.sidebar.radio('',mv_options,key=5)
     short_term = st.sidebar.slider('ST', min_value=1,
                                             max_value=30,
-                                            value=5)
+                                            value=10)
 
     mid_term = st.sidebar.slider('IT', min_value=1,
                                             max_value=50,
-                                            value=10)
+                                            value=20)
 
     long_term = st.sidebar.slider('LT',  min_value=1,
                                             max_value=200,
-                                            value=13)
+                                            value=30)
 
     # column names for long and short moving average columns
     short_term_col = sma_ema + '_' + str(short_term)
@@ -63,6 +65,13 @@ with tab_main:
             df.drop('Date Stamp', axis=1, inplace=True)
             df.set_index('Date', inplace=True)
 
+
+            # Values to exclude
+            exclude_igs = ['Energy-Coal','Finance-Blank Check','Finance-ETF / ETN','Finance-Publ Inv Fd-Bal','Finance-Publ Inv Fd-Bond','Finance-Publ Inv Fd-Eqt',
+                           'Finance-Publ Inv Fd-Glbl','Finance-Savings & Loan','Food-Dairy Products','Media-Periodicals','Office Supplies Mfg',
+                           'Oil&Gas-Royalty Trust','Retail-Mail Order&Direct','Retail/Whlsle-Jewelry','Retail/Whlsle-Office Sup','Tobacco']
+
+            df = df[~df['Name'].isin(exclude_igs)]
             # sidebar filters
             st.sidebar.header('Sector & Industry Groups')
             # load list of Sector values & create filter
@@ -413,12 +422,17 @@ with tab_main:
             df_sector_final.drop(['Sector Rank Avg Old','Date_y','Sector Rank', short_term_col+'_y', mid_term_col+'_y', long_term_col+'_y', 'alert_st', 'alert_lt', 'position_st', 'position_lt','Buy Sell ST_y', 'Buy Sell LT_y'], axis=1, inplace=True)
 
             df_sector_final['Sector Rank Avg'] = df_sector_final['Sector Rank Avg'].astype('float32').round(2).astype('int')
+            #df_sector_final['Date'] = df_sector_final['Date'].astype('float32').round(2).astype('int')
+            df_sector_final['Date'] = pd.to_datetime(df_sector_final['Date'])
             # Restructure columns in dataframe
             df_sector_final = df_sector_final.reindex(columns=['Date','Sector','Sector Rank Avg',short_term_col,mid_term_col,long_term_col,'Buy Sell ST','Buy Sell LT'])
 
             # Filter dataframe
             df_sector_final = df_sector_final.loc[df_sector_final['Sector'].isin(sector_options) & df_sector_final['Buy Sell ST'].isin(st_signal_options) & df_sector_final['Buy Sell LT'].isin(lt_signal_options)]
+            #df_spreadsheet, code = spreadsheet(df_sector_final)
             st.write(df_sector_final)
+            #st.write(df_spreadsheet)
+            #st.write(code)
 
             # Call download function
             csv = convert_df(df1_sector)
@@ -838,8 +852,35 @@ with tab_signal:
 
                 st.plotly_chart(fig_average_signals)
 
+
+with tab_excel:
+    st.title('Excel Summary')
+    def excel_summary():
+        # allow user to upload their own file through a streamlit sile uploader
+        uploaded_file = st.file_uploader("Please Upload a CSV File",type=['csv'],key=4)
+        if uploaded_file is not None:
+            file_details = {"FileName":uploaded_file.name,"FileType":uploaded_file.type,"FileSize":uploaded_file.size,"Key":24}
+            df = pd.read_csv(uploaded_file)
+
+            # Now we have the date from this column we can drop it and set it as the index
+            if 'Unnamed: 0' in df.columns:
+                df.drop('Unnamed: 0', axis=1, inplace=True)
+            # else:
+                # df.drop('id', axis=1, inplace=True)
+
+            # enable toggle to view & unview the dataset
+            if st.checkbox('Show File Details & DataFrame'):
+                st.write(file_details)
+                st.markdown('** Original Dataset:**')
+                st.write('>Data Dimension: ' + str(df.shape[0]) + ' rows and ' + str(df.shape[1]) + ' columns.')
+            df_spreadsheet, code = spreadsheet(df)
+            st.write(df_spreadsheet)
+            st.write(code)
+
 if __name__ == '__main__':
     with tab_main:
         app()
     with tab_signal:
         app_signals()
+    with tab_excel:
+        excel_summary()
