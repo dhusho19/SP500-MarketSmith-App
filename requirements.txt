@@ -5,4 +5,4 @@ plotly==5.18.0
 plotly-express==0.4.1
 click==8
 mitosheet==0.1.506
-matplotlib==3.3.4
+matplotlib.dates==3.3.4
