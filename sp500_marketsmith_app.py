@@ -6,6 +6,9 @@ import base64
 import streamlit as st
 import streamlit.components.v1 as components
 import plotly.express as px
+import plotly.graph_objects as go
+from matplotlib.dates import date2num
+from scipy.stats import linregress
 from datetime import datetime
 import webbrowser
 import tempfile
@@ -65,7 +68,7 @@ with tab_main:
             df.drop('Date Stamp', axis=1, inplace=True)
             df.set_index('Date', inplace=True)
 
-
+            print(df.dtypes)
             # Values to exclude
             exclude_igs = ['Energy-Coal','Finance-Blank Check','Finance-ETF / ETN','Finance-Publ Inv Fd-Bal','Finance-Publ Inv Fd-Bond','Finance-Publ Inv Fd-Eqt',
                            'Finance-Publ Inv Fd-Glbl','Finance-Savings & Loan','Food-Dairy Products','Media-Periodicals','Office Supplies Mfg',
@@ -119,7 +122,11 @@ with tab_main:
             crossover_strategy(df_sector_final, 'Sector Rank Avg')
             crossover_strategy(df_selected_industry, 'Ind Group Rank')
             with chart_col:
-                plotting(df_sector_final,df_selected_industry,selected_sector,selected_industry)
+                st.header('Graphing Sectors & IG')
+                if st.checkbox('Plot Regression'):
+                    plotting_regression(df_sector_final,df_selected_industry,selected_sector,selected_industry)
+                else:
+                    plotting(df_sector_final,df_selected_industry,selected_sector,selected_industry)
             with data_col:
                 df_sector_daily_changes = summary_sector(df)
                 df_daily_changes = summary(df)
@@ -194,42 +201,98 @@ with tab_main:
         # open URL in new browser window
         webbrowser.open(url, new=2)
 
-    def plotting(df_sector_rank, df_selected_industry,selected_sector,selected_industry):
+    def plotting_regression(df_sector_rank, df_selected_industry, selected_sector, selected_industry):
 
-        st.header('Graphing Sectors & IG')
+        #st.header('Graphing Sectors & IG')
         # filtered data to create plots
         if st.checkbox('Plot Sector Ranking Graph'):
             st.subheader('IBD Sector Ranking')
 
-            fig = px.line(df_sector_rank, x=df_sector_rank.index, y=['Sector Rank Avg',df_sector_rank[short_term_col],df_sector_rank[mid_term_col],df_sector_rank[long_term_col]],
-                            hover_name='Sector', template = 'plotly_dark',
-                            color_discrete_map={'Sector Rank Avg':'light blue', short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
-                            )
+            fig = px.line(df_sector_rank, x=df_sector_rank.index,
+                        y=['Sector Rank Avg', df_sector_rank[short_term_col], df_sector_rank[mid_term_col], df_sector_rank[long_term_col]],
+                        hover_name='Sector', template='plotly_dark',
+                        color_discrete_map={'Sector Rank Avg': 'light blue', short_term_col: 'green', mid_term_col: 'yellow', long_term_col: 'red'}
+                        # trendline="ols"  # Add this line for regression line
+                        )
+
+            # Calculate linear regression for 'Sector Rank Avg'
+            slope, intercept, _, _, _ = linregress(date2num(df_sector_rank.index), df_sector_rank['Sector Rank Avg'])
+            regression_line = intercept + slope * date2num(df_sector_rank.index)
+
+
+            # Add trendline for 'Sector Rank Avg'
+            trendline = go.Scatter(x=df_sector_rank.index,
+                                y=regression_line,
+                                mode='lines',
+                                name='Regression Line',
+                                line=dict(color='red'))
+            fig.add_trace(trendline)
+
+            # Calculate standard deviation lines for 'Sector Rank Avg'
+            std_dev = np.std(df_sector_rank['Sector Rank Avg'])
+            z_score = 1  # Set the desired z-score for the confidence interval
+            z_score_2 = 2
+
+
+            upper_std_line = regression_line + z_score * std_dev
+            lower_std_line = regression_line - z_score * std_dev
+
+            upper_std_line_2 = regression_line + z_score_2 * std_dev
+            lower_std_line_2 = regression_line - z_score_2 * std_dev
+
+            # Add standard deviation lines for 'Sector Rank Avg'
+            upper_std_trace = go.Scatter(x=df_sector_rank.index,
+                                        y=upper_std_line,
+                                        mode='lines',
+                                        name='Upper Std Dev',
+                                        line=dict(color='green', dash='dash'))
+            lower_std_trace = go.Scatter(x=df_sector_rank.index,
+                                        y=lower_std_line,
+                                        mode='lines',
+                                        name='Lower Std Dev',
+                                        line=dict(color='green', dash='dash'))
+            fig.add_trace(upper_std_trace)
+            fig.add_trace(lower_std_trace)
+
+
+            upper_std_trace_2 = go.Scatter(x=df_sector_rank.index,
+                                        y=upper_std_line_2,
+                                        mode='lines',
+                                        name='Upper Std Dev (2)',
+                                        line=dict(color='orange', dash='dash'))
+            lower_std_trace_2 = go.Scatter(x=df_sector_rank.index,
+                                        y=lower_std_line_2,
+                                        mode='lines',
+                                        name='Lower Std Dev (2)',
+                                        line=dict(color='orange', dash='dash'))
+            fig.add_trace(upper_std_trace_2)
+            fig.add_trace(lower_std_trace_2)
+
 
             fig.add_scatter(x=df_sector_rank.loc[df_sector_rank['position_st'] == -1].index,
                             y=df_sector_rank[short_term_col][df_sector_rank['position_st'] == -1],
-                            name= 'ST Buy',
+                            name='ST Buy',
                             mode='markers',
                             marker_symbol='star-triangle-up',
                             marker_color='green', marker_size=15)
 
             fig.add_scatter(x=df_sector_rank.loc[df_sector_rank['position_st'] == 1].index,
                             y=df_sector_rank[short_term_col][df_sector_rank['position_st'] == 1],
-                            name= 'ST Sell',
+                            name='ST Sell',
                             mode='markers',
                             marker_symbol='star-triangle-down',
                             marker_color='red', marker_size=15)
 
             fig.add_scatter(x=df_sector_rank.loc[df_sector_rank['position_lt'] == -1].index,
                             y=df_sector_rank[mid_term_col][df_sector_rank['position_lt'] == -1],
-                            name= 'LT Buy',
+                            name='LT Buy',
                             mode='markers',
                             marker_symbol='star-triangle-up',
                             marker_color='blue', marker_size=15)
 
             fig.add_scatter(x=df_sector_rank.loc[df_sector_rank['position_lt'] == 1].index,
                             y=df_sector_rank[mid_term_col][df_sector_rank['position_lt'] == 1],
-                            name= 'LT Sell',
+                            name='LT Sell',
                             mode='markers',
                             marker_symbol='star-triangle-down',
                             marker_color='orange', marker_size=15)
@@ -237,10 +300,12 @@ with tab_main:
             fig.update_layout(title=selected_sector,
                             xaxis_title="Date",
                             yaxis_title="Sector Ranking",
-                            legend_title ='')
+                            legend_title=''
+                            )
 
             fig.update_yaxes(autorange="reversed")
             fig.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": "Sector Rank Avg"})
+
 
             # checkbox to hide and show the buy & sell dataframe
             if st.checkbox('Buy & Sell Sector Data'):
@@ -272,6 +337,223 @@ with tab_main:
 
         if st.checkbox('Plot IG Ranking Graph'):
             st.subheader('IBD Industry Group Ranking')
+
+            # Ensure that the DataFrame is sorted by the datetime index
+            df_selected_industry = df_selected_industry.sort_index()
+
+            fig = px.line(df_selected_industry, x=df_selected_industry.index, y=['Ind Group Rank',df_selected_industry[short_term_col],df_selected_industry[mid_term_col],df_selected_industry[long_term_col]],
+                            hover_name='Name',template = 'plotly_dark',
+                            color_discrete_map={'Ind Group Rank':'light blue',short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
+                            )
+
+            # Calculate linear regression for 'Sector Rank Avg'
+            slope, intercept, _, _, _ = linregress(date2num(df_selected_industry.index), df_selected_industry['Ind Group Rank'])
+            regression_line = intercept + slope * date2num(df_selected_industry.index)
+
+
+            # Add trendline for 'Ind Group Rank'
+            trendline = go.Scatter(x=df_selected_industry.index,
+                                y=regression_line,
+                                mode='lines',
+                                name='Regression Line',
+                                line=dict(color='red'))
+            fig.add_trace(trendline)
+
+            # Calculate standard deviation lines for 'Sector Rank Avg'
+            std_dev = np.std(df_selected_industry['Ind Group Rank'])
+            z_score = 1  # Set the desired z-score for the confidence interval
+            z_score_2 = 2
+
+
+            upper_std_line = regression_line + z_score * std_dev
+            lower_std_line = regression_line - z_score * std_dev
+
+            upper_std_line_2 = regression_line + z_score_2 * std_dev
+            lower_std_line_2 = regression_line - z_score_2 * std_dev
+
+            # Add standard deviation lines for 'Sector Rank Avg'
+            upper_std_trace = go.Scatter(x=df_selected_industry.index,
+                                        y=upper_std_line,
+                                        mode='lines',
+                                        name='Upper Std Dev',
+                                        line=dict(color='green', dash='dash'))
+            lower_std_trace = go.Scatter(x=df_selected_industry.index,
+                                        y=lower_std_line,
+                                        mode='lines',
+                                        name='Lower Std Dev',
+                                        line=dict(color='green', dash='dash'))
+            fig.add_trace(upper_std_trace)
+            fig.add_trace(lower_std_trace)
+
+
+            upper_std_trace_2 = go.Scatter(x=df_selected_industry.index,
+                                        y=upper_std_line_2,
+                                        mode='lines',
+                                        name='Upper Std Dev (2)',
+                                        line=dict(color='orange', dash='dash'))
+            lower_std_trace_2 = go.Scatter(x=df_selected_industry.index,
+                                        y=lower_std_line_2,
+                                        mode='lines',
+                                        name='Lower Std Dev (2)',
+                                        line=dict(color='orange', dash='dash'))
+            fig.add_trace(upper_std_trace_2)
+            fig.add_trace(lower_std_trace_2)
+
+
+            fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_st'] == -1].index,
+                            y=df_selected_industry[short_term_col][df_selected_industry['position_st'] == -1],
+                            name= 'ST Buy',
+                            mode='markers',
+                            marker_symbol='star-triangle-up',
+                            marker_color='green', marker_size=15)
+
+            fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_st'] == 1].index,
+                            y=df_selected_industry[short_term_col][df_selected_industry['position_st'] == 1],
+                            name= 'ST Sell',
+                            mode='markers',
+                            marker_symbol='star-triangle-down',
+                            marker_color='red', marker_size=15)
+
+            fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_lt'] == -1].index,
+                            y=df_selected_industry[mid_term_col][df_selected_industry['position_lt'] == -1],
+                            name= 'LT Buy',
+                            mode='markers',
+                            marker_symbol='star-triangle-up',
+                            marker_color='blue', marker_size=15)
+
+            fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_lt'] == 1].index,
+                            y=df_selected_industry[mid_term_col][df_selected_industry['position_lt'] == 1],
+                            name= 'LT Sell',
+                            mode='markers',
+                            marker_symbol='star-triangle-down',
+                            marker_color='orange', marker_size=15)
+
+            fig.update_layout(
+                            title=selected_industry,
+                            xaxis_title="Date",
+                            yaxis_title="IG Ranking",
+                            legend_title ='')
+
+            fig.update_yaxes(autorange="reversed")
+            fig.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": "Ind Group Rank"})
+
+            # checkbox to hide and show the buy & sell dataframe
+            if st.checkbox('Buy & Sell IG Data'):
+                st.subheader('Buy & Sell DataFrame for ' + selected_industry)
+                # create buy and sell column, to easily identify the triggers
+                df_selected_industry['Buy Sell ST'] = np.where(df_selected_industry['position_st'] == -1,'BUY','SELL')
+                df_selected_industry['Buy Sell LT'] = np.where(df_selected_industry['position_lt'] == -1,'BUY','SELL')
+                # sort df desc order
+                sorted_industry_df = df_selected_industry.sort_index(ascending=False)
+                sorted_industry_df.reset_index(inplace=True)
+
+                # Rounding formatting
+                sorted_industry_df[short_term_col] = sorted_industry_df[short_term_col].astype('float32').round(2).astype('int')
+                sorted_industry_df[mid_term_col] = sorted_industry_df[mid_term_col].astype('float32').round(2).astype('int')
+                sorted_industry_df[long_term_col] = sorted_industry_df[long_term_col].astype('float32').round(2).astype('int')
+
+                # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
+                csv = convert_df(sorted_industry_df.loc[:,['Date','Symbol','Sector','Name','Ind Group Rank',short_term_col,mid_term_col,long_term_col,'Buy Sell ST']].loc[(sorted_industry_df['position_st'].isin([-1,1]))])
+                st.download_button(label="Download data as CSV",
+                                data=csv,
+                                file_name='IG_Latest_Signals.csv',
+                                mime='text/csv')
+                # write df to streamlit app
+                st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank','Buy Sell ST']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
+
+            # create button to open chart in new window
+            if st.button('Open chart'):
+                open_chart(fig, selected_industry)
+                # display Plotly Express chart
+                st.plotly_chart(fig)
+            else:
+                return st.plotly_chart(fig)
+
+    def plotting(df_sector_rank, df_selected_industry, selected_sector, selected_industry):
+
+        #st.header('Graphing Sectors & IG')
+        # filtered data to create plots
+        if st.checkbox('Plot Sector Ranking Graph'):
+            st.subheader('IBD Sector Ranking')
+
+            fig = px.line(df_sector_rank, x=df_sector_rank.index,
+                        y=['Sector Rank Avg', df_sector_rank[short_term_col], df_sector_rank[mid_term_col], df_sector_rank[long_term_col]],
+                        hover_name='Sector', template='plotly_dark',
+                        color_discrete_map={'Sector Rank Avg': 'light blue', short_term_col: 'green', mid_term_col: 'yellow', long_term_col: 'red'}
+                        # trendline="ols"  # Add this line for regression line
+                        )
+
+            fig.add_scatter(x=df_sector_rank.loc[df_sector_rank['position_st'] == -1].index,
+                            y=df_sector_rank[short_term_col][df_sector_rank['position_st'] == -1],
+                            name='ST Buy',
+                            mode='markers',
+                            marker_symbol='star-triangle-up',
+                            marker_color='green', marker_size=15)
+
+            fig.add_scatter(x=df_sector_rank.loc[df_sector_rank['position_st'] == 1].index,
+                            y=df_sector_rank[short_term_col][df_sector_rank['position_st'] == 1],
+                            name='ST Sell',
+                            mode='markers',
+                            marker_symbol='star-triangle-down',
+                            marker_color='red', marker_size=15)
+
+            fig.add_scatter(x=df_sector_rank.loc[df_sector_rank['position_lt'] == -1].index,
+                            y=df_sector_rank[mid_term_col][df_sector_rank['position_lt'] == -1],
+                            name='LT Buy',
+                            mode='markers',
+                            marker_symbol='star-triangle-up',
+                            marker_color='blue', marker_size=15)
+
+            fig.add_scatter(x=df_sector_rank.loc[df_sector_rank['position_lt'] == 1].index,
+                            y=df_sector_rank[mid_term_col][df_sector_rank['position_lt'] == 1],
+                            name='LT Sell',
+                            mode='markers',
+                            marker_symbol='star-triangle-down',
+                            marker_color='orange', marker_size=15)
+
+            fig.update_layout(title=selected_sector,
+                            xaxis_title="Date",
+                            yaxis_title="Sector Ranking",
+                            legend_title=''
+                            )
+
+            fig.update_yaxes(autorange="reversed")
+            fig.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": "Sector Rank Avg"})
+
+
+            # checkbox to hide and show the buy & sell dataframe
+            if st.checkbox('Buy & Sell Sector Data'):
+                st.subheader('Buy & Sell DataFrame for ' + selected_sector)
+                # create buy and sell column, to easily identify the triggers
+                df_sector_rank['Buy Sell ST'] = np.where(df_sector_rank['position_st'] == -1,'BUY','SELL')
+                df_sector_rank['Buy Sell LT'] = np.where(df_sector_rank['position_lt'] == -1,'BUY','SELL')
+                # sort df desc order
+                sorted_sector_df = df_sector_rank.sort_index(ascending=False)
+                sorted_sector_df.reset_index(inplace=True)
+
+                # call download function, with a subset of the data. Only looking at rows for buy and sell triggers
+                csv = convert_df(sorted_sector_df.loc[:,['Date','Sector','Sector Rank Avg',short_term_col,long_term_col,'Buy Sell ST']].loc[(sorted_sector_df['position_st'].isin([-1,1]))])
+                st.download_button(label="Download data as CSV",
+                                data=csv,
+                                file_name='Sector_Latest_Signals.csv',
+                                mime='text/csv')
+
+                # write df to streamlit app
+                st.write(sorted_sector_df.loc[:,['Date','Sector','Sector Rank Avg','Buy Sell ST']].loc[(sorted_sector_df['position_st'].isin([-1,1]))].head(3))
+
+            # create button to open chart in new window
+            if st.button('Open chart'):
+                open_chart(fig, selected_industry)
+                # display Plotly Express chart
+                st.plotly_chart(fig)
+            else:
+                return st.plotly_chart(fig)
+
+        if st.checkbox('Plot IG Ranking Graph'):
+            st.subheader('IBD Industry Group Ranking')
+
+            # Ensure that the DataFrame is sorted by the datetime index
+            df_selected_industry = df_selected_industry.sort_index()
 
             fig = px.line(df_selected_industry, x=df_selected_industry.index, y=['Ind Group Rank',df_selected_industry[short_term_col],df_selected_industry[mid_term_col],df_selected_industry[long_term_col]],
                             hover_name='Name',template = 'plotly_dark',
@@ -346,7 +628,6 @@ with tab_main:
                 st.plotly_chart(fig)
             else:
                 return st.plotly_chart(fig)
-
 
     def summary_sector(df):
         st.header('Sector & IG Summary')
