@@ -1,8 +1,8 @@
 pandas==2.0.3
 numpy==1.24.4
-streamlit==1.28.0
+streamlit==1.29.0
 plotly==5.18.0
 plotly-express==0.4.1
 click==8
-mitosheet==0.1.506
+pi
 matplotlib==3.3.4
