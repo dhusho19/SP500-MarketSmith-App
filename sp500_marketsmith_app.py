@@ -14,12 +14,11 @@ import webbrowser
 import tempfile
 from streamlit.components.v1 import html
 from functools import reduce
-from mitosheet.streamlit.v1 import spreadsheet
 
 
 st.set_page_config(layout="wide")
 
-tab_main, tab_signal, tab_excel = st.tabs(['📈 Main', '📈 Sector & IG Signals','📈 Excel'])
+tab_main, tab_signal = st.tabs(['📈 Main', '📈 Sector & IG Signals'])
 
 with tab_main:
     st.title('MS Sector & Industry Group Rotation')
@@ -68,7 +67,6 @@ with tab_main:
             df.drop('Date Stamp', axis=1, inplace=True)
             df.set_index('Date', inplace=True)
 
-            print(df.dtypes)
             # Values to exclude
             exclude_igs = ['Energy-Coal','Finance-Blank Check','Finance-ETF / ETN','Finance-Publ Inv Fd-Bal','Finance-Publ Inv Fd-Bond','Finance-Publ Inv Fd-Eqt',
                            'Finance-Publ Inv Fd-Glbl','Finance-Savings & Loan','Food-Dairy Products','Media-Periodicals','Office Supplies Mfg',
@@ -203,7 +201,6 @@ with tab_main:
 
     def plotting_regression(df_sector_rank, df_selected_industry, selected_sector, selected_industry):
 
-        #st.header('Graphing Sectors & IG')
         # filtered data to create plots
         if st.checkbox('Plot Sector Ranking Graph'):
             st.subheader('IBD Sector Ranking')
@@ -212,7 +209,6 @@ with tab_main:
                         y=['Sector Rank Avg', df_sector_rank[short_term_col], df_sector_rank[mid_term_col], df_sector_rank[long_term_col]],
                         hover_name='Sector', template='plotly_dark',
                         color_discrete_map={'Sector Rank Avg': 'light blue', short_term_col: 'green', mid_term_col: 'yellow', long_term_col: 'red'}
-                        # trendline="ols"  # Add this line for regression line
                         )
 
             # Calculate linear regression for 'Sector Rank Avg'
@@ -470,8 +466,6 @@ with tab_main:
                 return st.plotly_chart(fig)
 
     def plotting(df_sector_rank, df_selected_industry, selected_sector, selected_industry):
-
-        #st.header('Graphing Sectors & IG')
         # filtered data to create plots
         if st.checkbox('Plot Sector Ranking Graph'):
             st.subheader('IBD Sector Ranking')
@@ -629,6 +623,43 @@ with tab_main:
             else:
                 return st.plotly_chart(fig)
 
+    # Function to calculate regression line and standard deviation lines
+    def add_regression_and_std_lines(fig, x_values, y_values, line_name, color, z_scores=[1]):
+        # Hardcoded colors for standard deviation lines
+        std_colors = ['green', 'orange']
+
+        slope, intercept, _, _, _ = linregress(date2num(x_values), y_values)
+        regression_line = intercept + slope * date2num(x_values)
+
+        # Add trendline
+        trendline = go.Scatter(x=x_values,
+                            y=regression_line,
+                            mode='lines',
+                            name=f'{line_name} Regression Line',
+                            line=dict(color=color))
+        fig.add_trace(trendline)
+
+        # Calculate standard deviation lines
+        for i, z_score in enumerate(z_scores):
+            std_dev = np.std(y_values)
+            upper_std_line = regression_line + z_score * std_dev
+            lower_std_line = regression_line - z_score * std_dev
+
+            # Add standard deviation lines
+            upper_std_trace = go.Scatter(x=x_values,
+                                        y=upper_std_line,
+                                        mode='lines',
+                                        name=f'{line_name} Upper Std Dev ({z_score})',
+                                        line=dict(color=std_colors[i], dash='dash'))
+            lower_std_trace = go.Scatter(x=x_values,
+                                        y=lower_std_line,
+                                        mode='lines',
+                                        name=f'{line_name} Lower Std Dev ({z_score})',
+                                        line=dict(color=std_colors[i], dash='dash'))
+            fig.add_trace(upper_std_trace)
+            fig.add_trace(lower_std_trace)
+
+
     def summary_sector(df):
         st.header('Sector & IG Summary')
         if st.checkbox('Sector'):
@@ -710,10 +741,7 @@ with tab_main:
 
             # Filter dataframe
             df_sector_final = df_sector_final.loc[df_sector_final['Sector'].isin(sector_options) & df_sector_final['Buy Sell ST'].isin(st_signal_options) & df_sector_final['Buy Sell LT'].isin(lt_signal_options)]
-            #df_spreadsheet, code = spreadsheet(df_sector_final)
             st.write(df_sector_final)
-            #st.write(df_spreadsheet)
-            #st.write(code)
 
             # Call download function
             csv = convert_df(df1_sector)
@@ -982,14 +1010,6 @@ with tab_signal:
                     df_combined[col+'_LT_Buy_%'] = df_combined[col+'_LT_Buy_%'].astype('float32').round(2).astype('int')
                     df_combined[col+'_LT_Sell_%'] = df_combined[col+'_LT_Sell_%'].astype('float32').round(2).astype('int')
 
-                st.write(df_combined)
-
-                # Call download function
-                csv = convert_df(df_combined)
-                st.download_button(label="Download dataset as CSV",
-                    data=csv,
-                    file_name='Moving_Average_Percentages.csv',
-                    mime='text/csv')
 
                 # Define the desired order of columns in the legend
                 column_order = ['ST Buy %', short_term_col+'_ST_Buy_%', long_term_col+'_ST_Buy_%', 'Buy_ST_Buy_%', 'Sell_ST_Buy_%',
@@ -1007,161 +1027,166 @@ with tab_signal:
                                 ]]
 
             with col_chart:
-                # original overview plot
-                fig_signals = px.line(df_final_cnt, x=df_final_cnt.index,
-                                    y=[df_final_cnt['ST Buy %'],df_final_cnt['ST Sell %'],df_final_cnt['LT Buy %'],df_final_cnt['LT Sell %']],
-                                    template = 'plotly_dark',
-                                    color_discrete_map={'ST Buy %':'green','ST Sell %':'yellow','LT Sell %':'red','LT Buy %':'blue'}
-                                    )
+                if st.checkbox('Plot Regression '):
+                    # original overview plot
+                    fig_signals = px.line(df_final_cnt, x=df_final_cnt.index,
+                                        y=[df_final_cnt['ST Buy %'],df_final_cnt['ST Sell %'],df_final_cnt['LT Buy %'],df_final_cnt['LT Sell %']],
+                                        template = 'plotly_dark',
+                                        color_discrete_map={'ST Buy %':'green','ST Sell %':'yellow','LT Sell %':'red','LT Buy %':'blue'}
+                                        )
 
-                fig_signals.update_layout(title='Market Performance',
-                                    xaxis_title="Date",
-                                    yaxis_title="Signal Count",
-                                    legend_title=''
-                                    )
-                fig_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Buy %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Buy %'})
+                    fig_signals.update_layout(title='Market Performance',
+                                        xaxis_title="Date",
+                                        yaxis_title="Signal Count",
+                                        legend_title=''
+                                        )
+                    fig_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Buy %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Buy %'})
 
-                # The below adds vertical and horziontal lines as the cursor to the plot
-                fig_signals.update_yaxes(showgrid=False, zeroline=False, showticklabels=True,
-                                showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
+                    # The below adds vertical and horziontal lines as the cursor to the plot
+                    fig_signals.update_yaxes(showgrid=False, zeroline=False, showticklabels=True,
+                                    showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
 
-                fig_signals.update_xaxes(showgrid=False, zeroline=False, rangeslider_visible=False, showticklabels=True,
-                                showspikes=True, spikemode='across', spikesnap='cursor', showline=True, spikedash='solid')
+                    fig_signals.update_xaxes(showgrid=False, zeroline=False, rangeslider_visible=False, showticklabels=True,
+                                    showspikes=True, spikemode='across', spikesnap='cursor', showline=True, spikedash='solid')
 
-                st.plotly_chart(fig_signals)
+                    # Add regression and multiple standard deviation lines for each line in the plot
+                    add_regression_and_std_lines(fig_signals, df_final_cnt.index, df_final_cnt['ST Buy %'], 'ST Buy %', 'green', z_scores=[1, 2])
+                    add_regression_and_std_lines(fig_signals, df_final_cnt.index, df_final_cnt['ST Sell %'], 'ST Sell %', 'yellow', z_scores=[1, 2])
+                    add_regression_and_std_lines(fig_signals, df_final_cnt.index, df_final_cnt['LT Buy %'], 'LT Buy %', 'blue', z_scores=[1, 2])
+                    add_regression_and_std_lines(fig_signals, df_final_cnt.index, df_final_cnt['LT Sell %'], 'LT Sell %', 'red', z_scores=[1, 2])
+
+                    st.plotly_chart(fig_signals)
+
+                else:
+                    # original overview plot
+                    fig_signals = px.line(df_final_cnt, x=df_final_cnt.index,
+                                        y=[df_final_cnt['ST Buy %'],df_final_cnt['ST Sell %'],df_final_cnt['LT Buy %'],df_final_cnt['LT Sell %']],
+                                        template = 'plotly_dark',
+                                        color_discrete_map={'ST Buy %':'green','ST Sell %':'yellow','LT Sell %':'red','LT Buy %':'blue'}
+                                        )
+
+                    fig_signals.update_layout(title='Market Performance',
+                                        xaxis_title="Date",
+                                        yaxis_title="Signal Count",
+                                        legend_title=''
+                                        )
+                    fig_signals.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'ST Buy %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Sell %'}).update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": 'LT Buy %'})
+
+                    # The below adds vertical and horziontal lines as the cursor to the plot
+                    fig_signals.update_yaxes(showgrid=False, zeroline=False, showticklabels=True,
+                                    showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
+
+                    fig_signals.update_xaxes(showgrid=False, zeroline=False, rangeslider_visible=False, showticklabels=True,
+                                    showspikes=True, spikemode='across', spikesnap='cursor', showline=True, spikedash='solid')
+
+                    st.plotly_chart(fig_signals)
 
                 # averages plot
-                fig_average_signals = px.line(df_combined, x=df_combined.index,
-                                    y=df6.columns,
-                                    category_orders={'legendgroup': column_order},
-                                    template = 'plotly_dark',
-                                    color_discrete_map={
-                                                        'ST Buy %':'green', short_term_col+'_ST_Buy_%':'green', long_term_col+'_ST_Buy_%':'teal',
-                                                        'ST Sell %':'yellow', short_term_col+'_ST_Sell_%':'yellow', long_term_col+'_ST_Sell_%':'orange',
-                                                        'LT Buy %':'blue', short_term_col+'_LT_Buy_%':'blue', long_term_col+'_LT_Buy_%':'orange',
-                                                        'LT Sell %':'red', short_term_col+'_LT_Sell_%':'red', long_term_col+'_LT_Sell_%':'grey'
-                                                        })
+            fig_average_signals = px.line(df_combined, x=df_combined.index,
+                                y=df6.columns,
+                                category_orders={'legendgroup': column_order},
+                                template = 'plotly_dark',
+                                color_discrete_map={
+                                                    'ST Buy %':'green', short_term_col+'_ST_Buy_%':'green', long_term_col+'_ST_Buy_%':'teal',
+                                                    'ST Sell %':'yellow', short_term_col+'_ST_Sell_%':'yellow', long_term_col+'_ST_Sell_%':'orange',
+                                                    'LT Buy %':'blue', short_term_col+'_LT_Buy_%':'blue', long_term_col+'_LT_Buy_%':'orange',
+                                                    'LT Sell %':'red', short_term_col+'_LT_Sell_%':'red', long_term_col+'_LT_Sell_%':'grey'
+                                                    })
 
-                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Sell_%'] == -1].index,
-                                    y=df_combined[short_term_col+'_ST_Sell_%'][df_combined['position'+'_ST_Sell_%'] == -1],
-                                    name= 'Buy_ST_Sell_%',
-                                    mode='markers',
-                                    marker_symbol='star-triangle-up',
-                                    legendgroup='Buy_ST_Sell_%',
-                                    marker_color='green', marker_size=15)
-
-                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Sell_%'] == 1].index,
-                                y=df_combined[short_term_col+'_ST_Sell_%'][df_combined['position'+'_ST_Sell_%'] == 1],
-                                name= 'Sell_ST_Sell_%',
-                                mode='markers',
-                                marker_symbol='star-triangle-down',
-                                legendgroup='Sell_ST_Sell_%',
-                                marker_color='red', marker_size=15)
-
-                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Buy_%'] == 1].index,
-                                y=df_combined[short_term_col+'_ST_Buy_%'][df_combined['position'+'_ST_Buy_%'] == 1],
-                                name= 'Buy_ST_Buy_%',
+            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Sell_%'] == -1].index,
+                                y=df_combined[short_term_col+'_ST_Sell_%'][df_combined['position'+'_ST_Sell_%'] == -1],
+                                name= 'Buy_ST_Sell_%',
                                 mode='markers',
                                 marker_symbol='star-triangle-up',
-                                legendgroup='Buy_ST_Buy_%',
+                                legendgroup='Buy_ST_Sell_%',
                                 marker_color='green', marker_size=15)
 
-                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Buy_%'] == -1].index,
-                                y=df_combined[short_term_col+'_ST_Buy_%'][df_combined['position'+'_ST_Buy_%'] == -1],
-                                name= 'Sell_ST_Buy_%',
-                                mode='markers',
-                                marker_symbol='star-triangle-down',
-                                legendgroup='Sell_ST_Buy_%',
-                                marker_color='red', marker_size=15)
+            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Sell_%'] == 1].index,
+                            y=df_combined[short_term_col+'_ST_Sell_%'][df_combined['position'+'_ST_Sell_%'] == 1],
+                            name= 'Sell_ST_Sell_%',
+                            mode='markers',
+                            marker_symbol='star-triangle-down',
+                            legendgroup='Sell_ST_Sell_%',
+                            marker_color='red', marker_size=15)
 
-                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Sell_%'] == -1].index,
-                                y=df_combined[short_term_col+'_LT_Sell_%'][df_combined['position'+'_LT_Sell_%'] == -1],
-                                name= 'Buy_LT_Sell_%',
-                                mode='markers',
-                                marker_symbol='star-triangle-up',
-                                legendgroup='Buy_LT_Sell_%',
-                                marker_color='green', marker_size=15)
+            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Buy_%'] == 1].index,
+                            y=df_combined[short_term_col+'_ST_Buy_%'][df_combined['position'+'_ST_Buy_%'] == 1],
+                            name= 'Buy_ST_Buy_%',
+                            mode='markers',
+                            marker_symbol='star-triangle-up',
+                            legendgroup='Buy_ST_Buy_%',
+                            marker_color='green', marker_size=15)
 
-                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Sell_%'] == 1].index,
-                                y=df_combined[short_term_col+'_LT_Sell_%'][df_combined['position'+'_LT_Sell_%'] == 1],
-                                name= 'Sell_LT_Sell_%',
-                                mode='markers',
-                                marker_symbol='star-triangle-down',
-                                legendgroup='Buy_LT_Sell_%',
-                                marker_color='red', marker_size=15)
+            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Buy_%'] == -1].index,
+                            y=df_combined[short_term_col+'_ST_Buy_%'][df_combined['position'+'_ST_Buy_%'] == -1],
+                            name= 'Sell_ST_Buy_%',
+                            mode='markers',
+                            marker_symbol='star-triangle-down',
+                            legendgroup='Sell_ST_Buy_%',
+                            marker_color='red', marker_size=15)
 
+            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Sell_%'] == -1].index,
+                            y=df_combined[short_term_col+'_LT_Sell_%'][df_combined['position'+'_LT_Sell_%'] == -1],
+                            name= 'Buy_LT_Sell_%',
+                            mode='markers',
+                            marker_symbol='star-triangle-up',
+                            legendgroup='Buy_LT_Sell_%',
+                            marker_color='green', marker_size=15)
 
-                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Buy_%'] == 1].index,
-                                y=df_combined[short_term_col+'_LT_Buy_%'][df_combined['position'+'_LT_Buy_%'] == 1],
-                                name= 'Buy_LT_Buy_%',
-                                mode='markers',
-                                marker_symbol='star-triangle-up',
-                                legendgroup='Buy_LT_Buy_%',
-                                marker_color='green', marker_size=15)
-
-                fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Buy_%'] == -1].index,
-                                y=df_combined[short_term_col+'_LT_Buy_%'][df_combined['position'+'_LT_Buy_%'] == -1],
-                                name= 'Sell_LT_Buy_%',
-                                mode='markers',
-                                marker_symbol='star-triangle-down',
-                                legendgroup='Sell_LT_Buy_%',
-                                marker_color='red', marker_size=15)
-
-
-                fig_average_signals.update_layout(title='Market Signal Performance',
-                                    xaxis_title="Date",
-                                    yaxis_title="Signal Count",
-                                    legend_title=''
-                                    )
-
-                fig_average_signals.update_traces(line_dash='dot', selector=dict(name='ST Buy %'))
-                fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_ST_Buy_%'))
-                fig_average_signals.update_traces(line_dash='dot', selector=dict(name='ST Sell %'))
-                fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_ST_Sell_%'))
-
-                fig_average_signals.update_traces(line_dash='dot', selector=dict(name='LT Buy %'))
-                fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_LT_Buy_%'))
-                fig_average_signals.update_traces(line_dash='dot', selector=dict(name='LT Sell %'))
-                fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_LT_Sell_%'))
-
-                # The below adds vertical and horziontal lines as the cursor to the plot
-                fig_average_signals.update_yaxes(showgrid=False, zeroline=False, showticklabels=True,
-                                showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
-
-                fig_average_signals.update_xaxes(showgrid=False, zeroline=False, rangeslider_visible=False, showticklabels=True,
-                                showspikes=True, spikemode='across', spikesnap='cursor', showline=True, spikedash='solid')
-
-                st.plotly_chart(fig_average_signals)
+            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Sell_%'] == 1].index,
+                            y=df_combined[short_term_col+'_LT_Sell_%'][df_combined['position'+'_LT_Sell_%'] == 1],
+                            name= 'Sell_LT_Sell_%',
+                            mode='markers',
+                            marker_symbol='star-triangle-down',
+                            legendgroup='Buy_LT_Sell_%',
+                            marker_color='red', marker_size=15)
 
 
-with tab_excel:
-    st.title('Excel Summary')
-    def excel_summary():
-        # allow user to upload their own file through a streamlit sile uploader
-        uploaded_file = st.file_uploader("Please Upload a CSV File",type=['csv'],key=4)
-        if uploaded_file is not None:
-            file_details = {"FileName":uploaded_file.name,"FileType":uploaded_file.type,"FileSize":uploaded_file.size,"Key":24}
-            df = pd.read_csv(uploaded_file)
+            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Buy_%'] == 1].index,
+                            y=df_combined[short_term_col+'_LT_Buy_%'][df_combined['position'+'_LT_Buy_%'] == 1],
+                            name= 'Buy_LT_Buy_%',
+                            mode='markers',
+                            marker_symbol='star-triangle-up',
+                            legendgroup='Buy_LT_Buy_%',
+                            marker_color='green', marker_size=15)
 
-            # Now we have the date from this column we can drop it and set it as the index
-            if 'Unnamed: 0' in df.columns:
-                df.drop('Unnamed: 0', axis=1, inplace=True)
-            # else:
-                # df.drop('id', axis=1, inplace=True)
+            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Buy_%'] == -1].index,
+                            y=df_combined[short_term_col+'_LT_Buy_%'][df_combined['position'+'_LT_Buy_%'] == -1],
+                            name= 'Sell_LT_Buy_%',
+                            mode='markers',
+                            marker_symbol='star-triangle-down',
+                            legendgroup='Sell_LT_Buy_%',
+                            marker_color='red', marker_size=15)
 
-            # enable toggle to view & unview the dataset
-            if st.checkbox('Show File Details & DataFrame'):
-                st.write(file_details)
-                st.markdown('** Original Dataset:**')
-                st.write('>Data Dimension: ' + str(df.shape[0]) + ' rows and ' + str(df.shape[1]) + ' columns.')
-            df_spreadsheet, code = spreadsheet(df)
-            st.write(df_spreadsheet)
-            st.write(code)
+
+            fig_average_signals.update_layout(title='Market Signal Performance',
+                                xaxis_title="Date",
+                                yaxis_title="Signal Count",
+                                legend_title=''
+                                )
+
+            fig_average_signals.update_traces(line_dash='dot', selector=dict(name='ST Buy %'))
+            fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_ST_Buy_%'))
+            fig_average_signals.update_traces(line_dash='dot', selector=dict(name='ST Sell %'))
+            fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_ST_Sell_%'))
+
+            fig_average_signals.update_traces(line_dash='dot', selector=dict(name='LT Buy %'))
+            fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_LT_Buy_%'))
+            fig_average_signals.update_traces(line_dash='dot', selector=dict(name='LT Sell %'))
+            fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_LT_Sell_%'))
+
+            # The below adds vertical and horziontal lines as the cursor to the plot
+            fig_average_signals.update_yaxes(showgrid=False, zeroline=False, showticklabels=True,
+                            showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
+
+            fig_average_signals.update_xaxes(showgrid=False, zeroline=False, rangeslider_visible=False, showticklabels=True,
+                            showspikes=True, spikemode='across', spikesnap='cursor', showline=True, spikedash='solid')
+
+            st.plotly_chart(fig_average_signals)
+
 
 if __name__ == '__main__':
     with tab_main:
         app()
     with tab_signal:
         app_signals()
-    with tab_excel:
-        excel_summary()
