@@ -4,5 +4,4 @@ streamlit==1.29.0
 plotly==5.18.0
 plotly-express==0.4.1
 click==8
-pi
 matplotlib==3.3.4
