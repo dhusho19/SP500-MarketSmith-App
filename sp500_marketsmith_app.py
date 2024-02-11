@@ -554,9 +554,6 @@ with tab_main:
                             hover_name='Name'
                             )
 
-            # Add regression line and standard deviation lines
-            add_regression_and_std_lines(fig, df_selected_industry.index,df_selected_industry['Ind Mkt Val (bil)'], '', 'red', z_scores=[1, 2])
-
             # Customize layout
             fig.update_layout(
                 title=selected_industry,
