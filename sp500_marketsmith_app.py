@@ -210,60 +210,7 @@ with tab_main:
                         hover_name='Sector', template='plotly_dark',
                         color_discrete_map={'Sector Rank Avg': 'light blue', short_term_col: 'green', mid_term_col: 'yellow', long_term_col: 'red'}
                         )
-
-            # Calculate linear regression for 'Sector Rank Avg'
-            slope, intercept, _, _, _ = linregress(date2num(df_sector_rank.index), df_sector_rank['Sector Rank Avg'])
-            regression_line = intercept + slope * date2num(df_sector_rank.index)
-
-
-            # Add trendline for 'Sector Rank Avg'
-            trendline = go.Scatter(x=df_sector_rank.index,
-                                y=regression_line,
-                                mode='lines',
-                                name='Regression Line',
-                                line=dict(color='red'))
-            fig.add_trace(trendline)
-
-            # Calculate standard deviation lines for 'Sector Rank Avg'
-            std_dev = np.std(df_sector_rank['Sector Rank Avg'])
-            z_score = 1  # Set the desired z-score for the confidence interval
-            z_score_2 = 2
-
-
-            upper_std_line = regression_line + z_score * std_dev
-            lower_std_line = regression_line - z_score * std_dev
-
-            upper_std_line_2 = regression_line + z_score_2 * std_dev
-            lower_std_line_2 = regression_line - z_score_2 * std_dev
-
-            # Add standard deviation lines for 'Sector Rank Avg'
-            upper_std_trace = go.Scatter(x=df_sector_rank.index,
-                                        y=upper_std_line,
-                                        mode='lines',
-                                        name='Upper Std Dev',
-                                        line=dict(color='green', dash='dash'))
-            lower_std_trace = go.Scatter(x=df_sector_rank.index,
-                                        y=lower_std_line,
-                                        mode='lines',
-                                        name='Lower Std Dev',
-                                        line=dict(color='green', dash='dash'))
-            fig.add_trace(upper_std_trace)
-            fig.add_trace(lower_std_trace)
-
-
-            upper_std_trace_2 = go.Scatter(x=df_sector_rank.index,
-                                        y=upper_std_line_2,
-                                        mode='lines',
-                                        name='Upper Std Dev (2)',
-                                        line=dict(color='orange', dash='dash'))
-            lower_std_trace_2 = go.Scatter(x=df_sector_rank.index,
-                                        y=lower_std_line_2,
-                                        mode='lines',
-                                        name='Lower Std Dev (2)',
-                                        line=dict(color='orange', dash='dash'))
-            fig.add_trace(upper_std_trace_2)
-            fig.add_trace(lower_std_trace_2)
-
+            add_regression_and_std_lines(fig, df_sector_rank.index, df_sector_rank['Sector Rank Avg'], '', 'red', z_scores=[1, 2])
 
             fig.add_scatter(x=df_sector_rank.loc[df_sector_rank['position_st'] == -1].index,
                             y=df_sector_rank[short_term_col][df_sector_rank['position_st'] == -1],
@@ -341,60 +288,7 @@ with tab_main:
                             hover_name='Name',template = 'plotly_dark',
                             color_discrete_map={'Ind Group Rank':'light blue',short_term_col:'green',mid_term_col:'yellow',long_term_col:'red'}
                             )
-
-            # Calculate linear regression for 'Sector Rank Avg'
-            slope, intercept, _, _, _ = linregress(date2num(df_selected_industry.index), df_selected_industry['Ind Group Rank'])
-            regression_line = intercept + slope * date2num(df_selected_industry.index)
-
-
-            # Add trendline for 'Ind Group Rank'
-            trendline = go.Scatter(x=df_selected_industry.index,
-                                y=regression_line,
-                                mode='lines',
-                                name='Regression Line',
-                                line=dict(color='red'))
-            fig.add_trace(trendline)
-
-            # Calculate standard deviation lines for 'Sector Rank Avg'
-            std_dev = np.std(df_selected_industry['Ind Group Rank'])
-            z_score = 1  # Set the desired z-score for the confidence interval
-            z_score_2 = 2
-
-
-            upper_std_line = regression_line + z_score * std_dev
-            lower_std_line = regression_line - z_score * std_dev
-
-            upper_std_line_2 = regression_line + z_score_2 * std_dev
-            lower_std_line_2 = regression_line - z_score_2 * std_dev
-
-            # Add standard deviation lines for 'Sector Rank Avg'
-            upper_std_trace = go.Scatter(x=df_selected_industry.index,
-                                        y=upper_std_line,
-                                        mode='lines',
-                                        name='Upper Std Dev',
-                                        line=dict(color='green', dash='dash'))
-            lower_std_trace = go.Scatter(x=df_selected_industry.index,
-                                        y=lower_std_line,
-                                        mode='lines',
-                                        name='Lower Std Dev',
-                                        line=dict(color='green', dash='dash'))
-            fig.add_trace(upper_std_trace)
-            fig.add_trace(lower_std_trace)
-
-
-            upper_std_trace_2 = go.Scatter(x=df_selected_industry.index,
-                                        y=upper_std_line_2,
-                                        mode='lines',
-                                        name='Upper Std Dev (2)',
-                                        line=dict(color='orange', dash='dash'))
-            lower_std_trace_2 = go.Scatter(x=df_selected_industry.index,
-                                        y=lower_std_line_2,
-                                        mode='lines',
-                                        name='Lower Std Dev (2)',
-                                        line=dict(color='orange', dash='dash'))
-            fig.add_trace(upper_std_trace_2)
-            fig.add_trace(lower_std_trace_2)
-
+            add_regression_and_std_lines(fig, df_selected_industry.index, df_selected_industry['Ind Group Rank'], '', 'red', z_scores=[1, 2])
 
             fig.add_scatter(x=df_selected_industry.loc[df_selected_industry['position_st'] == -1].index,
                             y=df_selected_industry[short_term_col][df_selected_industry['position_st'] == -1],
@@ -456,6 +350,35 @@ with tab_main:
                                 mime='text/csv')
                 # write df to streamlit app
                 st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank','Buy Sell ST']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
+
+            # create button to open chart in new window
+            if st.button('Open chart'):
+                open_chart(fig, selected_industry)
+                # display Plotly Express chart
+                st.plotly_chart(fig)
+            else:
+                return st.plotly_chart(fig)
+
+        if st.checkbox('Plot IG Industry Market Value'):
+            st.subheader('IBD Industry Group Market Value')
+            # Create scatter plot
+            fig = px.scatter(df_selected_industry, x=df_selected_industry.index, y='Ind Mkt Val (bil)',
+                            template='plotly_dark',
+                            hover_name='Name'
+                            )
+
+            # Add regression line and standard deviation lines
+            add_regression_and_std_lines(fig, df_selected_industry.index,df_selected_industry['Ind Mkt Val (bil)'], '', 'red', z_scores=[1, 2])
+
+            # Customize layout
+            fig.update_layout(
+                title=selected_industry,
+                xaxis_title="Date",
+                yaxis_title="Ind Mkt Val (bil)",
+                legend_title='Industry Market Value'
+            )
+
+            fig.update_traces(showlegend=True)
 
             # create button to open chart in new window
             if st.button('Open chart'):
@@ -614,6 +537,35 @@ with tab_main:
                                 mime='text/csv')
                 # write df to streamlit app
                 st.write(sorted_industry_df.loc[:,['Date','Sector','Name','Ind Group Rank','Buy Sell ST']].loc[(sorted_industry_df['position_st'].isin([-1,1]))].head(3))
+
+            # create button to open chart in new window
+            if st.button('Open chart'):
+                open_chart(fig, selected_industry)
+                # display Plotly Express chart
+                st.plotly_chart(fig)
+            else:
+                return st.plotly_chart(fig)
+
+        if st.checkbox('Plot IG Industry Market Value'):
+            st.subheader('IBD Industry Group Market Value')
+            # Create scatter plot
+            fig = px.scatter(df_selected_industry, x=df_selected_industry.index, y='Ind Mkt Val (bil)',
+                            template='plotly_dark',
+                            hover_name='Name'
+                            )
+
+            # Add regression line and standard deviation lines
+            add_regression_and_std_lines(fig, df_selected_industry.index,df_selected_industry['Ind Mkt Val (bil)'], '', 'red', z_scores=[1, 2])
+
+            # Customize layout
+            fig.update_layout(
+                title=selected_industry,
+                xaxis_title="Date",
+                yaxis_title="Ind Mkt Val (bil)",
+                legend_title='Industry Market Value'
+            )
+
+            fig.update_traces(showlegend=True)
 
             # create button to open chart in new window
             if st.button('Open chart'):
