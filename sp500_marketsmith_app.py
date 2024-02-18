@@ -361,25 +361,39 @@ with tab_main:
 
         if st.checkbox('Plot IG Industry Market Value'):
             st.subheader('IBD Industry Group Market Value')
-            # Create scatter plot
-            fig = px.scatter(df_selected_industry, x=df_selected_industry.index, y='Ind Mkt Val (bil)',
-                            template='plotly_dark',
-                            hover_name='Name'
-                            )
 
-            # Add regression line and standard deviation lines
-            add_regression_and_std_lines(fig, df_selected_industry.index,df_selected_industry['Ind Mkt Val (bil)'], '', 'red', z_scores=[1, 2])
+            # Calculate regression line and standard deviation lines
+            slope, intercept, _, _, _ = linregress(date2num(df_selected_industry.index), df_selected_industry['Ind Mkt Val (bil)'])
+            regression_line = intercept + slope * date2num(df_selected_industry.index)
+            std_dev = np.std(df_selected_industry['Ind Mkt Val (bil)'])
+            z_scores = [1, 2]
+            std_colors = ['green', 'orange']
+
+            upper_std_lines = [regression_line + z_score * std_dev for z_score in z_scores]
+            lower_std_lines = [regression_line - z_score * std_dev for z_score in z_scores]
+
+            # Create scatter plot for 'Ind Mkt Val (bil)' with a dashed line
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=df_selected_industry.index, y=df_selected_industry['Ind Mkt Val (bil)'],
+                                    mode='lines', line=dict(color='lightskyblue', dash='dash'),
+                                    name='Ind Mkt Val (bil)'))
+
+            # Add regression line and standard deviation lines as separate traces
+            fig.add_trace(go.Scatter(x=df_selected_industry.index, y=regression_line, mode='lines',
+                                    name='Regression Line', line=dict(color='red', dash='dot')))
+            for i, z_score in enumerate(z_scores):
+                fig.add_trace(go.Scatter(x=df_selected_industry.index, y=upper_std_lines[i], mode='lines',
+                                        name=f'Upper Std Dev ({z_score})', line=dict(color=std_colors[i], dash='dash')))
+                fig.add_trace(go.Scatter(x=df_selected_industry.index, y=lower_std_lines[i], mode='lines',
+                                        name=f'Lower Std Dev ({z_score})', line=dict(color=std_colors[i], dash='dash')))
 
             # Customize layout
             fig.update_layout(
                 title=selected_industry,
-                xaxis_title="Date",
-                yaxis_title="Ind Mkt Val (bil)",
-                legend_title='Industry Market Value'
+                xaxis_title='Date',
+                yaxis_title='Ind Mkt Val (bil)',
+                legend_title=''
             )
-
-            fig.update_traces(showlegend=True)
-
             # create button to open chart in new window
             if st.button('Open chart'):
                 open_chart(fig, selected_industry)
@@ -507,12 +521,12 @@ with tab_main:
 
             fig.update_layout(
                             title=selected_industry,
-                            xaxis_title="Date",
-                            yaxis_title="IG Ranking",
+                            xaxis_title='Date',
+                            yaxis_title='IG Ranking',
                             legend_title ='')
 
-            fig.update_yaxes(autorange="reversed")
-            fig.update_traces(patch={"line": {"dash": 'dot'}}, selector={"legendgroup": "Ind Group Rank"})
+            fig.update_yaxes(autorange='reversed')
+            fig.update_traces(patch={'line': {'dash': 'dot'}}, selector={'legendgroup': 'Ind Group Rank'})
 
             # checkbox to hide and show the buy & sell dataframe
             if st.checkbox('Buy & Sell IG Data'):
@@ -548,22 +562,20 @@ with tab_main:
 
         if st.checkbox('Plot IG Industry Market Value'):
             st.subheader('IBD Industry Group Market Value')
-            # Create scatter plot
-            fig = px.scatter(df_selected_industry, x=df_selected_industry.index, y='Ind Mkt Val (bil)',
-                            template='plotly_dark',
-                            hover_name='Name'
-                            )
+
+            # Create scatter plot for 'Ind Mkt Val (bil)' with a dashed line
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=df_selected_industry.index, y=df_selected_industry['Ind Mkt Val (bil)'],
+                                    mode='lines', line=dict(color='lightskyblue', dash='dash'),
+                                    name='Ind Mkt Val (bil)'))
 
             # Customize layout
             fig.update_layout(
                 title=selected_industry,
-                xaxis_title="Date",
-                yaxis_title="Ind Mkt Val (bil)",
-                legend_title='Industry Market Value'
+                xaxis_title='Date',
+                yaxis_title='Ind Mkt Val (bil)',
+                legend_title=''
             )
-
-            fig.update_traces(showlegend=True)
-
             # create button to open chart in new window
             if st.button('Open chart'):
                 open_chart(fig, selected_industry)
@@ -585,7 +597,8 @@ with tab_main:
                             y=regression_line,
                             mode='lines',
                             name=f'{line_name} Regression Line',
-                            line=dict(color=color))
+                            line=dict(color=color, dash='dot'))
+
         fig.add_trace(trendline)
 
         # Calculate standard deviation lines
