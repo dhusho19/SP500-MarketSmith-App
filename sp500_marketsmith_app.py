@@ -576,6 +576,8 @@ with tab_main:
                 yaxis_title='Ind Mkt Val (bil)',
                 legend_title=''
             )
+
+            fig.update_traces(showlegend=True)
             # create button to open chart in new window
             if st.button('Open chart'):
                 open_chart(fig, selected_industry)
