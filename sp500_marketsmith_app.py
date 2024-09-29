@@ -21,7 +21,20 @@ st.set_page_config(layout="wide")
 tab_main, tab_signal = st.tabs(['📈 Main', '📈 Sector & IG Signals'])
 
 with tab_main:
-    st.title('MS Sector & Industry Group Rotation')
+
+    st.sidebar.header('Sector & Industry Groups')
+    # Create placeholders for dynamic filters (Sector and Industry)
+    dynamic_sector_placeholder = st.sidebar.empty()
+    dynamic_industry_placeholder = st.sidebar.empty()
+
+    # date picker filters, find the minimum date in the dataset and use that as the start date
+    date_string = '2021-05-19'
+    date_format = '%Y-%m-%d'
+    min_date = datetime.strptime(date_string, date_format)
+
+    st.sidebar.header("Date Range")
+    start_date = st.sidebar.date_input('Begin', min_date)
+    end_date = st.sidebar.date_input('End')
 
     st.sidebar.header('Moving Averages')
     # Short and Long Term Moving Average filters
@@ -44,14 +57,6 @@ with tab_main:
     mid_term_col = sma_ema + '_' + str(mid_term)
     long_term_col = sma_ema + '_' + str(long_term)
 
-    # date picker filters, find the minimum date in the dataset and use that as the start date
-    date_string = '2021-05-19'
-    date_format = '%Y-%m-%d'
-    min_date = datetime.strptime(date_string, date_format)
-
-    st.sidebar.header("Date Range")
-    start_date = st.sidebar.date_input('Begin', min_date)
-    end_date = st.sidebar.date_input('End')
 
     def app():
 
@@ -74,16 +79,14 @@ with tab_main:
 
             df = df[~df['Name'].isin(exclude_igs)]
             # sidebar filters
-            st.sidebar.header('Sector & Industry Groups')
             # load list of Sector values & create filter
             sector = sorted(df['Sector'].unique().tolist())
-            selected_sector = st.sidebar.selectbox('', sector)
+            selected_sector = dynamic_sector_placeholder.selectbox('Select Sector', sector)
 
             # list of all relevant Industries based on the Sector filter selection
             industry = df.loc[df['Sector'] == selected_sector, 'Name'].unique()
-
             # store users Industry selection
-            selected_industry = st.sidebar.selectbox('', industry)
+            selected_industry = dynamic_industry_placeholder.selectbox('Select Industry', industry)
 
             # enable toggle to view & unview the dataset
             if st.checkbox('Show File Details & Dataframe'):
