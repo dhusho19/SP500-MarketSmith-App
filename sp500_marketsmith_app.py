@@ -70,6 +70,8 @@ with tab_main:
             df['Date'] = df['Date Stamp'].dt.date
             # Now we have the date from this column we can drop it and set it as the index
             df.drop('Date Stamp', axis=1, inplace=True)
+            # Drop duplicate IG entries per date (Symbol + Name should be unique per date)
+            df = df.drop_duplicates(subset=["Date", "Symbol", "Name"])
             df.set_index('Date', inplace=True)
 
             # Values to exclude
@@ -730,87 +732,92 @@ with tab_main:
     def summary(df):
         if st.checkbox('IG'):
             df.reset_index(inplace=True)
-            # an index column appears if you select the sector's summary first, which affects the reshaping. Therefore, need to drop the column if it exists.
             if 'index' in df.columns:
                 df.drop('index', axis=1, inplace=True)
 
-            # Create a IG list of all unqiue IG's
+            # Create a list of all unique Industry Groups
             industry_lst = sorted(df['Name'].unique().tolist())
 
-            # Iterate through each IG and load into a list & convert to an NumPy array
+            # Process each IG separately and collect results
             ig_lst = []
             for ig in industry_lst:
                 df_industry = df.loc[(df['Name'] == ig)]
                 crossover_strategy(df_industry, 'Ind Group Rank')
                 ig_lst.append(df_industry)
-            arr = np.asarray(ig_lst)
 
-            # Load the array which is storing the data into a DataFrame
-            df1 = pd.DataFrame(arr.reshape(-1, 13), columns=['Date','Symbol','Name','Sector','Ind Group Rank','Ind Mkt Val (bil)',short_term_col,mid_term_col,long_term_col,'alert_st','alert_lt','position_st','position_lt'])
-            df1.index = np.repeat(np.arange(arr.shape[0]), arr.shape[1]) + 1
-            df1.index.name = 'id'
-            # create buy and sell column, to easily identify the triggers
-            df1['Buy Sell ST'] = np.where(df1['alert_st'] == 0,'BUY','SELL')
-            df1['Buy Sell LT'] = np.where(df1['alert_lt'] == 0,'BUY','SELL')
+            # Concatenate all individual IG DataFrames into one
+            df1 = pd.concat(ig_lst, ignore_index=True)
 
-            # Filter Dataframes to only look at rows which are signals
-            df_st = df1.loc[df1['position_st'].isin([-1,1])]
-            df_lt = df1.loc[df1['position_lt'].isin([-1,1])]
+            # Create buy/sell signal columns
+            df1['Buy Sell ST'] = np.where(df1['alert_st'] == 0, 'BUY', 'SELL')
+            df1['Buy Sell LT'] = np.where(df1['alert_lt'] == 0, 'BUY', 'SELL')
+
+            # Filter signals only
+            df_st = df1.loc[df1['position_st'].isin([-1, 1])]
+            df_lt = df1.loc[df1['position_lt'].isin([-1, 1])]
             frames = [df_st, df_lt]
-            df_final = pd.concat(frames)
-            df_final.sort_values(by=['Date'], ascending=True, inplace=True)
+            df_final = pd.concat(frames).sort_values(by='Date')
 
-            # Pull back the latest two signals per IG
+            # Get the latest signal for each IG
             df_final1 = df_final.groupby('Name').tail(1).reset_index(drop=True)
-            df_final1.drop(['alert_st','alert_lt','position_st','position_lt'], axis=1, inplace=True)
+            df_final1.drop(['alert_st', 'alert_lt', 'position_st', 'position_lt'], axis=1, inplace=True)
 
-            # Rounding formatting
+            # Rounding
             df_final1[short_term_col] = df_final1[short_term_col].astype('float32').round(2).astype('int')
             df_final1[mid_term_col] = df_final1[mid_term_col].astype('float32').round(2).astype('int')
             df_final1[long_term_col] = df_final1[long_term_col].astype('float32').round(2).astype('int')
 
-            # Sort DataFrame and reshape it to merge each IG onto the one row
-            df_final1.sort_values(by=['Name','Date'], ascending=True, inplace=True)
+            df_final1.sort_values(by=['Name', 'Date'], ascending=True, inplace=True)
 
-            # IG Filter
+            # Filters
             unique_sectors = sorted(df_final1['Sector'].unique().tolist())
-            sector_options = st.multiselect('Sectors of Interest',unique_sectors, default=unique_sectors,key="14")
-            # Short-Term signal filter
-            ig_st_signal = ['BUY', 'SELL']
-            ig_st_signal_options = st.multiselect('Short-Term Buy & Sell Signal',ig_st_signal, default=ig_st_signal, key="15")
-            # Long-Term signal filter
-            ig_lt_signal = ['BUY', 'SELL']
-            ig_lt_signal_options = st.multiselect('Long-Term Buy & Sell Signal',ig_lt_signal, default=ig_lt_signal, key="16")
+            sector_options = st.multiselect('Sectors of Interest', unique_sectors, default=unique_sectors, key="14")
+            ig_st_signal_options = st.multiselect('Short-Term Buy & Sell Signal', ['BUY', 'SELL'], default=['BUY', 'SELL'], key="15")
+            ig_lt_signal_options = st.multiselect('Long-Term Buy & Sell Signal', ['BUY', 'SELL'], default=['BUY', 'SELL'], key="16")
 
-            # Find the latest Ind Group Rank / Mkt Val and pull it  through to the summary
+            # Add latest data columns for comparison
             max_date = df['Date'].max()
             df_latest = df.loc[df['Sector'].isin(sector_options) & (df['Date'] == max_date)]
 
-            # Filter dataframe
-            df_final1 = df_final1.loc[df_final1['Sector'].isin(sector_options) & df_final1['Buy Sell ST'].isin(ig_st_signal_options) & df_final1['Buy Sell LT'].isin(ig_lt_signal_options)]
-            df_final2 = pd.merge(df_final1, df_latest, on=['Symbol','Name','Sector'], how='left')
-            # Rename the columns were two instances occur, validation the data is correct pulling through date
-            df_final2.rename(columns = {'Date_x':'Date', 'Date_y':'Latest Date','Ind Group Rank_y':'Ind Group Rank', 'Ind Mkt Val (bil)_y':'Ind Mkt Val (bil)'},inplace=True)
-            # Drop the latest date column & dropped the instances of IG Rnk / Mkt Val when the signal occurred.
-            df_final2.drop(['Ind Group Rank_x','Ind Mkt Val (bil)_x', 'Latest Date'], axis=1, inplace=True)
-            # Re-order the dataframe
-            df_final2 = df_final2.reindex(columns=['Date','Symbol','Name','Sector','Ind Group Rank','Ind Mkt Val (bil)',short_term_col,mid_term_col,long_term_col,'Buy Sell ST','Buy Sell LT'])
+            # Apply final filters
+            df_final1 = df_final1.loc[
+                df_final1['Sector'].isin(sector_options) &
+                df_final1['Buy Sell ST'].isin(ig_st_signal_options) &
+                df_final1['Buy Sell LT'].isin(ig_lt_signal_options)
+            ]
+
+            df_final2 = pd.merge(df_final1, df_latest, on=['Symbol', 'Name', 'Sector'], how='left')
+
+            df_final2.rename(columns={
+                'Date_x': 'Date',
+                'Date_y': 'Latest Date',
+                'Ind Group Rank_y': 'Ind Group Rank',
+                'Ind Mkt Val (bil)_y': 'Ind Mkt Val (bil)'
+            }, inplace=True)
+
+            df_final2.drop(['Ind Group Rank_x', 'Ind Mkt Val (bil)_x', 'Latest Date'], axis=1, inplace=True)
+
+            df_final2 = df_final2.reindex(columns=[
+                'Date', 'Symbol', 'Name', 'Sector',
+                'Ind Group Rank', 'Ind Mkt Val (bil)',
+                short_term_col, mid_term_col, long_term_col,
+                'Buy Sell ST', 'Buy Sell LT'
+            ])
+
             st.write(df_final2)
 
-
-            # Call download function
-            csv = convert_df(df1)
+            # Downloads
             st.download_button(label="Download full dataset as CSV",
-                data=csv,
+                data=convert_df(df1),
                 file_name='IG_Signals.csv',
-                mime='text/csv')
+                mime='text/csv'
+            )
 
-            # Call download function
-            csv = convert_df(df_final2)
             st.download_button(label="Download data as CSV",
-                data=csv,
+                data=convert_df(df_final2),
                 file_name='IG_Latest_Signals.csv',
-                mime='text/csv')
+                mime='text/csv'
+            )
 
             return df_final2
 
