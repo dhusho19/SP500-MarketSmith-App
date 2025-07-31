@@ -20,6 +20,66 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 st.set_page_config(layout="wide")
 
+
+# --- Chat Function ---
+def chat_with_data(df: pd.DataFrame):
+    st.markdown("---")
+    st.subheader("🤖 Ask the AI About Your Data")
+
+    if st.button("🗑️ Clear Chat History"):
+        st.session_state.chat_messages = []
+
+    if "chat_messages" not in st.session_state:
+        st.session_state.chat_messages = []
+
+    for msg in st.session_state.chat_messages:
+        st.chat_message(msg["role"]).write(msg["content"])
+
+    user_input = st.chat_input("Ask a question about the uploaded dataset...")
+
+    if user_input:
+        st.chat_message("user").write(user_input)
+        st.session_state.chat_messages.append({"role": "user", "content": user_input})
+
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            full_response = ""
+
+            openai_csv = df.to_csv(index=False)
+            try:
+                # Build schema description
+                schema = "\n".join([f"- {col}: {dtype}" for col, dtype in df.dtypes.items()])
+                prompt = (
+                    f"The user has uploaded a dataset.\n\n"
+                    f"You are an AI assistant analyzing a dataset provided by the user.\n\n"
+                    f"### Dataset Schema:\n{schema}\n\n"
+                    f"### Full Dataset (CSV format):\n{openai_csv}\n\n"
+                    f"Now answer this question about the dataset:\n{user_input}"
+                )
+
+                response = openai.ChatCompletion.create(
+                    model="gpt-4.1-mini",
+                    messages=[
+                        *st.session_state.chat_messages,
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    stream=True
+                )
+
+                for chunk in response:
+                    delta = chunk.choices[0].delta.get("content", "")
+                    full_response += delta
+                    message_placeholder.markdown(full_response + "▌")
+
+                message_placeholder.markdown(full_response)
+
+            except Exception as e:
+                full_response = f"⚠️ Error: {e}"
+                message_placeholder.markdown(full_response)
+
+            st.session_state.chat_messages.append({"role": "assistant", "content": full_response})
+
 tab_main, tab_signal = st.tabs(['📈 Main', '📈 Sector & IG Signals'])
 
 with tab_main:
@@ -138,59 +198,11 @@ with tab_main:
             st.markdown("""---""")
             daily_sector_signal_changes(df_sector_daily_changes)
             daily_signal_changes(df_daily_changes)
-            chat_with_data(df)
         else:
             st.subheader("About")
             st.info("Built with Streamlit")
             st.info("hushon.d@googlemail.com")
             st.text("Donovan Hushon")
-
-    # --- AI Assistant Function ---
-    def chat_with_data(df):
-        st.markdown("---")
-        st.subheader("🤖 Ask the AI About Your Data")
-
-        if "chat_messages" not in st.session_state:
-            st.session_state.chat_messages = [
-                {"role": "system", "content": (
-                    "You are a financial assistant helping analyze S&P 500 sector and industry data. Answer only using the data." )}
-            ]
-
-        for msg in st.session_state.chat_messages:
-            st.chat_message(msg["role"]).write(msg["content"])
-
-        # Must be placed outside of columns/tabs/forms
-        if "chat_prompt_pending" not in st.session_state:
-            st.session_state.chat_prompt_pending = ""
-
-        st.session_state.chat_prompt_pending = st.text_input(
-            "Ask a question about the data:",
-            placeholder="e.g., Which sector had the highest market value last month?",
-            key="chat_prompt_input"
-        )
-
-        user_input = st.session_state.chat_prompt_pending
-        if user_input:
-            st.chat_message("user").write(user_input)
-            st.session_state.chat_messages.append({"role": "user", "content": user_input})
-
-            sample_csv = df.head(100).to_csv(index=False)
-            try:
-                response = openai.ChatCompletion.create(
-                    model="gpt-4o",
-                    messages=[
-                        *st.session_state.chat_messages,
-                        {"role": "user", "content": f"Here's a sample of the data:\n\n{sample_csv}\n\nQuestion: {user_input}"}
-                    ],
-                    temperature=0.3
-                )
-                reply = response['choices'][0]['message']['content']
-            except Exception as e:
-                reply = f"⚠️ Error: {e}"
-
-            st.chat_message("assistant").write(reply)
-            st.session_state.chat_messages.append({"role": "assistant", "content": reply})
-            st.session_state.chat_prompt_pending = ""
 
 
     def crossover_strategy(df, rank_col):
@@ -917,7 +929,7 @@ with tab_main:
 
     def convert_df(df):
         # IMPORTANT: Cache the conversion to prevent computation on every rerun
-        return df.to_csv().encode('utf-8')
+        return df.to_csv(index=False).encode('utf-8')
 
 with tab_signal:
     st.title('Market Signal Performance')
@@ -936,7 +948,8 @@ with tab_signal:
             if 'Unnamed: 0' in df.columns:
                 df.drop('Unnamed: 0', axis=1, inplace=True)
             else:
-                df.drop('id', axis=1, inplace=True)
+                pass
+               # df.drop('id', axis=1, inplace=True)
             df.set_index('Date', inplace=True)
 
             # enable toggle to view & unview the dataset
@@ -988,7 +1001,15 @@ with tab_signal:
 
                 # Display the filtered dataframe
                 st.write(df_final_cnt)
-                st.markdown("""---""")
+
+                # Call download function
+                df_final_cnt_output = df_final_cnt.reset_index()
+                csv = convert_df(df_final_cnt_output)
+                st.download_button(label="Download for OpenAI",
+                data=csv,
+                file_name='Market_Signal_Performance.csv',
+                mime='text/csv')
+
                 # Create an empty dataframe to store the intermediate results
                 df_final_overall = df_final_cnt.copy()
 
@@ -1034,21 +1055,6 @@ with tab_signal:
                     df_combined[col+'_LT_Buy_%'] = df_combined[col+'_LT_Buy_%'].astype('float32').round(2).astype('int')
                     df_combined[col+'_LT_Sell_%'] = df_combined[col+'_LT_Sell_%'].astype('float32').round(2).astype('int')
 
-
-                # Define the desired order of columns in the legend
-                column_order = ['ST Buy %', short_term_col+'_ST_Buy_%', long_term_col+'_ST_Buy_%', 'Buy_ST_Buy_%', 'Sell_ST_Buy_%',
-                                'ST Sell %', short_term_col+'_ST_Sell_%', long_term_col+'_ST_Sell_%', 'Buy_ST_Sell_%', 'Sell_ST_Sell_%',
-                                'LT Buy %', short_term_col+'_LT_Buy_%', long_term_col+'_LT_Buy_%', 'Buy_LT_Buy_%', 'Sell_LT_Buy_%'
-                                'LT Sell %', short_term_col+'_LT_Sell_%', long_term_col+'_LT_Sell_%', 'Buy_LT_Sell_%', 'Sell_LT_Sell_%',
-                               ]
-
-
-                # Reorder columns in df_combined
-                df6 = df_combined.loc[:,['ST Buy %', short_term_col+'_ST_Buy_%', long_term_col+'_ST_Buy_%',
-                                'ST Sell %', short_term_col+'_ST_Sell_%', long_term_col+'_ST_Sell_%',
-                                'LT Buy %', short_term_col+'_LT_Buy_%', long_term_col+'_LT_Buy_%',
-                                'LT Sell %', short_term_col+'_LT_Sell_%', long_term_col+'_LT_Sell_%',
-                                ]]
 
             with col_chart:
                 if st.checkbox('Plot Regression '):
@@ -1105,112 +1111,42 @@ with tab_signal:
 
                     st.plotly_chart(fig_signals)
 
-                # averages plot
-            fig_average_signals = px.line(df_combined, x=df_combined.index,
-                                y=df6.columns,
-                                category_orders={'legendgroup': column_order},
-                                template = 'plotly_dark',
-                                color_discrete_map={
-                                                    'ST Buy %':'green', short_term_col+'_ST_Buy_%':'green', long_term_col+'_ST_Buy_%':'teal',
-                                                    'ST Sell %':'yellow', short_term_col+'_ST_Sell_%':'yellow', long_term_col+'_ST_Sell_%':'orange',
-                                                    'LT Buy %':'blue', short_term_col+'_LT_Buy_%':'blue', long_term_col+'_LT_Buy_%':'orange',
-                                                    'LT Sell %':'red', short_term_col+'_LT_Sell_%':'red', long_term_col+'_LT_Sell_%':'grey'
-                                                    })
-
-            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Sell_%'] == -1].index,
-                                y=df_combined[short_term_col+'_ST_Sell_%'][df_combined['position'+'_ST_Sell_%'] == -1],
-                                name= 'Buy_ST_Sell_%',
-                                mode='markers',
-                                marker_symbol='star-triangle-up',
-                                legendgroup='Buy_ST_Sell_%',
-                                marker_color='green', marker_size=15)
-
-            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Sell_%'] == 1].index,
-                            y=df_combined[short_term_col+'_ST_Sell_%'][df_combined['position'+'_ST_Sell_%'] == 1],
-                            name= 'Sell_ST_Sell_%',
-                            mode='markers',
-                            marker_symbol='star-triangle-down',
-                            legendgroup='Sell_ST_Sell_%',
-                            marker_color='red', marker_size=15)
-
-            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Buy_%'] == 1].index,
-                            y=df_combined[short_term_col+'_ST_Buy_%'][df_combined['position'+'_ST_Buy_%'] == 1],
-                            name= 'Buy_ST_Buy_%',
-                            mode='markers',
-                            marker_symbol='star-triangle-up',
-                            legendgroup='Buy_ST_Buy_%',
-                            marker_color='green', marker_size=15)
-
-            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_ST_Buy_%'] == -1].index,
-                            y=df_combined[short_term_col+'_ST_Buy_%'][df_combined['position'+'_ST_Buy_%'] == -1],
-                            name= 'Sell_ST_Buy_%',
-                            mode='markers',
-                            marker_symbol='star-triangle-down',
-                            legendgroup='Sell_ST_Buy_%',
-                            marker_color='red', marker_size=15)
-
-            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Sell_%'] == -1].index,
-                            y=df_combined[short_term_col+'_LT_Sell_%'][df_combined['position'+'_LT_Sell_%'] == -1],
-                            name= 'Buy_LT_Sell_%',
-                            mode='markers',
-                            marker_symbol='star-triangle-up',
-                            legendgroup='Buy_LT_Sell_%',
-                            marker_color='green', marker_size=15)
-
-            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Sell_%'] == 1].index,
-                            y=df_combined[short_term_col+'_LT_Sell_%'][df_combined['position'+'_LT_Sell_%'] == 1],
-                            name= 'Sell_LT_Sell_%',
-                            mode='markers',
-                            marker_symbol='star-triangle-down',
-                            legendgroup='Buy_LT_Sell_%',
-                            marker_color='red', marker_size=15)
-
-
-            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Buy_%'] == 1].index,
-                            y=df_combined[short_term_col+'_LT_Buy_%'][df_combined['position'+'_LT_Buy_%'] == 1],
-                            name= 'Buy_LT_Buy_%',
-                            mode='markers',
-                            marker_symbol='star-triangle-up',
-                            legendgroup='Buy_LT_Buy_%',
-                            marker_color='green', marker_size=15)
-
-            fig_average_signals.add_scatter(x=df_combined.loc[df_combined['position'+'_LT_Buy_%'] == -1].index,
-                            y=df_combined[short_term_col+'_LT_Buy_%'][df_combined['position'+'_LT_Buy_%'] == -1],
-                            name= 'Sell_LT_Buy_%',
-                            mode='markers',
-                            marker_symbol='star-triangle-down',
-                            legendgroup='Sell_LT_Buy_%',
-                            marker_color='red', marker_size=15)
-
-
-            fig_average_signals.update_layout(title='Market Signal Performance',
-                                xaxis_title="Date",
-                                yaxis_title="Signal Count",
-                                legend_title=''
-                                )
-
-            fig_average_signals.update_traces(line_dash='dot', selector=dict(name='ST Buy %'))
-            fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_ST_Buy_%'))
-            fig_average_signals.update_traces(line_dash='dot', selector=dict(name='ST Sell %'))
-            fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_ST_Sell_%'))
-
-            fig_average_signals.update_traces(line_dash='dot', selector=dict(name='LT Buy %'))
-            fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_LT_Buy_%'))
-            fig_average_signals.update_traces(line_dash='dot', selector=dict(name='LT Sell %'))
-            fig_average_signals.update_traces(line_dash='dash', selector=dict(name=short_term_col+'_LT_Sell_%'))
-
-            # The below adds vertical and horziontal lines as the cursor to the plot
-            fig_average_signals.update_yaxes(showgrid=False, zeroline=False, showticklabels=True,
-                            showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
-
-            fig_average_signals.update_xaxes(showgrid=False, zeroline=False, rangeslider_visible=False, showticklabels=True,
-                            showspikes=True, spikemode='across', spikesnap='cursor', showline=True, spikedash='solid')
-
-            st.plotly_chart(fig_average_signals)
-
 
 if __name__ == '__main__':
     with tab_main:
         app()
     with tab_signal:
         app_signals()
+
+# --- 📄 File Upload (bottom of app, above chat) ---
+st.markdown("---")
+st.subheader("📄 Upload a Dataset for OpenAI")
+
+uploaded_file_llm = st.file_uploader(
+    "🤖 Upload CSV for OpenAI Assistant",
+    type=["csv"],
+    key="llm_upload"
+)
+
+if uploaded_file_llm is not None:
+    df_llm = pd.read_csv(uploaded_file_llm)
+    st.session_state.df_llm = df_llm  # Save for chat
+    file_details = {
+        "FileName": uploaded_file_llm.name,
+        "FileType": uploaded_file_llm.type,
+        "FileSize": uploaded_file_llm.size
+    }
+    st.success(f"LLM file loaded: {uploaded_file_llm.name}")
+
+    if st.checkbox('Show File Details & Dataframe', key="llm_details"):
+        st.write(file_details)
+        st.markdown('**OpenAI Dataset:**')
+        st.write(f'> Data Dimensions: {df_llm.shape[0]} rows, {df_llm.shape[1]} columns.')
+        st.dataframe(df_llm)
+
+elif "df_llm" not in st.session_state:
+    st.info("Please upload a CSV file to start chatting with your data.")
+
+# ✅ Must be outside the tabs!
+if "df_llm" in st.session_state:
+    chat_with_data(st.session_state.df_llm)
