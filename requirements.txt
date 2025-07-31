@@ -5,3 +5,4 @@ plotly==5.18.0
 plotly-express==0.4.1
 click==8
 matplotlib==3.3.4
+openai==0.27.8
