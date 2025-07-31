@@ -14,7 +14,9 @@ import webbrowser
 import tempfile
 from streamlit.components.v1 import html
 from functools import reduce
+import openai
 
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 st.set_page_config(layout="wide")
 
@@ -136,11 +138,59 @@ with tab_main:
             st.markdown("""---""")
             daily_sector_signal_changes(df_sector_daily_changes)
             daily_signal_changes(df_daily_changes)
+            chat_with_data(df)
         else:
             st.subheader("About")
             st.info("Built with Streamlit")
             st.info("hushon.d@googlemail.com")
             st.text("Donovan Hushon")
+
+    # --- AI Assistant Function ---
+    def chat_with_data(df):
+        st.markdown("---")
+        st.subheader("🤖 Ask the AI About Your Data")
+
+        if "chat_messages" not in st.session_state:
+            st.session_state.chat_messages = [
+                {"role": "system", "content": (
+                    "You are a financial assistant helping analyze S&P 500 sector and industry data. Answer only using the data." )}
+            ]
+
+        for msg in st.session_state.chat_messages:
+            st.chat_message(msg["role"]).write(msg["content"])
+
+        # Must be placed outside of columns/tabs/forms
+        if "chat_prompt_pending" not in st.session_state:
+            st.session_state.chat_prompt_pending = ""
+
+        st.session_state.chat_prompt_pending = st.text_input(
+            "Ask a question about the data:",
+            placeholder="e.g., Which sector had the highest market value last month?",
+            key="chat_prompt_input"
+        )
+
+        user_input = st.session_state.chat_prompt_pending
+        if user_input:
+            st.chat_message("user").write(user_input)
+            st.session_state.chat_messages.append({"role": "user", "content": user_input})
+
+            sample_csv = df.head(100).to_csv(index=False)
+            try:
+                response = openai.ChatCompletion.create(
+                    model="gpt-4o",
+                    messages=[
+                        *st.session_state.chat_messages,
+                        {"role": "user", "content": f"Here's a sample of the data:\n\n{sample_csv}\n\nQuestion: {user_input}"}
+                    ],
+                    temperature=0.3
+                )
+                reply = response['choices'][0]['message']['content']
+            except Exception as e:
+                reply = f"⚠️ Error: {e}"
+
+            st.chat_message("assistant").write(reply)
+            st.session_state.chat_messages.append({"role": "assistant", "content": reply})
+            st.session_state.chat_prompt_pending = ""
 
 
     def crossover_strategy(df, rank_col):
